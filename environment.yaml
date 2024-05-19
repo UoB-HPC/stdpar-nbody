@@ -1,0 +1,17 @@
+name: stdpar-bh
+channels:
+  - conda-forge
+dependencies:
+  - gcc=13.2.0
+  - gxx=13.2.0
+  - clang
+  - clangxx
+  - binutils_linux-64
+  - tbb
+  - tbb-devel
+  - python=3.12
+  - htop
+  - git
+  - linux-perf
+  - numpy
+  - matplotlib
