@@ -42,7 +42,7 @@ auto build_plummer_model(Arguments arguments) {
 
     auto system = System<T>(number_of_particles, 1000, static_cast<T>(6.674e-11), std::max<std::size_t>(4 * number_of_particles, 1000));
 
-    for (auto _ = 0; _ < number_of_particles; _++) {
+    for (size_t _ = 0; _ < number_of_particles; _++) {
         auto mass = 1.0 / static_cast<T>(number_of_particles);
         auto radius = 1.0 / std::sqrt(std::pow(system.unit_dis(system.gen), -2.0 / 3.0) - 1);
         auto pos_angle = system.angle_dis(system.gen);
@@ -70,7 +70,7 @@ auto build_plummer_model(Arguments arguments) {
 
 template<typename T>
 auto create_circular_orbit(System<T>& system, std::size_t number_of_particles, T total_mass, T orbit_mass, T centre_x, T centre_y) {
-    for (auto _ = 0; _ < number_of_particles; _++) {
+    for (size_t _ = 0; _ < number_of_particles; _++) {
         auto mass = orbit_mass / static_cast<T>(number_of_particles);
         auto radius = 30 + 20 * system.unit_dis(system.gen);
 

@@ -18,7 +18,7 @@ void run_all_pairs_step(System<T>& system, Arguments arguments) {
     }
 
     // all pairs algorithm time step
-    for (auto step = 0; step < arguments.steps; step++) {
+    for (size_t step = 0; step < arguments.steps; step++) {
         // force step
         auto r = system.body_indices();
         std::for_each(
@@ -33,7 +33,7 @@ void run_all_pairs_step(System<T>& system, Arguments arguments) {
                 T accel_y_i = 0;
                 T position_x_i = p_xs[i];
                 T position_y_i = p_ys[i];
-                for (auto j = 0; j < size; j++) {
+                for (size_t j = 0; j < size; j++) {
                     T mass_j = masses[j];
                     T position_x_j = p_xs[j];
                     T position_y_j = p_ys[j];

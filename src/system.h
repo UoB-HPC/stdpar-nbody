@@ -134,7 +134,7 @@ public:
     }
 
     void print() const {
-        for (auto i = 0; i < size; i++) {
+        for (size_t i = 0; i < size; i++) {
             std::cout << std::format(
                 "{:02}: m={: .3e}, p=({: .3e}, {: .3e}), v=({: .3e}, {: .3e}), f=({: .3e}, {: .3e})",
                 i, masses[i], positions_x[i], positions_y[i],

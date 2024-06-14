@@ -60,7 +60,7 @@ void barnes_hut_run(System<T>& system, Arguments arguments) {
     if (arguments.print_info) {
         std::cout << "Tree init complete\n";
     }
-    for (auto step = 0; step < arguments.steps; step++) {
+    for (size_t step = 0; step < arguments.steps; step++) {
         barnes_hut_step<T, Index_t>(system, arguments, tree);
 
         if (arguments.save_output) {

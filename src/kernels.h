@@ -104,7 +104,6 @@ void atomic_insert(
             // create children
             Index_t first_child_index = tree.bump_allocator->fetch_add(4, memory_order_relaxed);
             tree.first_child[tree_index] = first_child_index;
-            T half_length = side_length / static_cast<T>(4);  // / 2 is for new quad length, then / 2 is for half length
 
             tree.next_nodes[first_child_index + 0] = first_child_index + 1;
             tree.next_nodes[first_child_index + 1] = first_child_index + 2;
@@ -208,7 +207,7 @@ auto calc_mass_atomic_tree(System<T>& system, AtomicQuadTreeContainer<T, Index_t
     std::for_each(
         std::execution::par,
         r.begin(), r.end(),
-        [tree] (auto _) {
+        [tree] (auto) {
             atomic_calc_mass(tree);
         }
     );
