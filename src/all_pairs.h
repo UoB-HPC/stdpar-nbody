@@ -20,14 +20,15 @@ void run_all_pairs_step(System<T>& system, Arguments arguments) {
     // all pairs algorithm time step
     for (auto step = 0; step < arguments.steps; step++) {
         // force step
-        std::for_each_n(
+        auto r = system.body_indices();
+        std::for_each(
             std::execution::par_unseq,
-            std::begin(system.index), system.size,
+            r.begin(), r.end(),
             [
                 p_xs=system.positions_x.data(), p_ys=system.positions_y.data(),
                 constant=system.constant, masses=system.masses.data(), size=system.size,
                 a_xs=system.accel_x.data(), a_ys=system.accel_y.data()
-            ] (uint32_t i) {
+            ] (auto i) {
                 T accel_x_i = 0;
                 T accel_y_i = 0;
                 T position_x_i = p_xs[i];

@@ -55,7 +55,7 @@ void barnes_hut_run(System<T>& system, Arguments arguments) {
     }
 
     // init tree structure
-    auto vector_tree = AtomicQuadTree<T, Index_t>(system.index.size());
+    auto vector_tree = AtomicQuadTree<T, Index_t>(system.max_tree_node_size);
     auto tree = vector_tree.get_container();
     if (arguments.print_info) {
         std::cout << "Tree init complete\n";

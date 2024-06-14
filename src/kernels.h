@@ -182,9 +182,10 @@ auto bh_calc_force(T const particle_pos_x, T const particle_pos_y, T const theta
 
 template<typename T, typename Index_t>
 auto build_atomic_tree(System<T>& system, AtomicQuadTreeContainer<T, Index_t> tree) {
-    std::for_each_n(
+    auto r = system.body_indices();
+    std::for_each(
         std::execution::par,
-        std::begin(system.index), system.size,
+        r.begin(), r.end(),
         [
             masses=system.masses.data(),
             positions_x=system.positions_x.data(), positions_y=system.positions_y.data(),
@@ -203,9 +204,10 @@ auto build_atomic_tree(System<T>& system, AtomicQuadTreeContainer<T, Index_t> tr
 
 template<typename T, typename Index_t>
 auto calc_mass_atomic_tree(System<T>& system, AtomicQuadTreeContainer<T, Index_t> tree) {
-    std::for_each_n(
+    auto r = system.body_indices();
+    std::for_each(
         std::execution::par,
-        std::begin(system.index), system.size,
+        r.begin(), r.end(),
         [tree] (auto _) {
             atomic_calc_mass(tree);
         }
@@ -214,9 +216,10 @@ auto calc_mass_atomic_tree(System<T>& system, AtomicQuadTreeContainer<T, Index_t
 
 template<typename T, typename Index_t>
 auto calc_force_atomic_tree(System<T>& system, ConstAtomicQuadTreeContainer<T, Index_t> const tree, T const theta) {
-    std::for_each_n(
+    auto r = system.body_indices();
+    std::for_each(
         std::execution::par_unseq,
-        std::begin(system.index), system.size,
+        r.begin(), r.end(),
         [
             p_xs=system.positions_x.data(), p_ys=system.positions_y.data(), constant=system.constant,
             masses=system.masses.data(), s_f_x=system.accel_x.data(), s_f_y=system.accel_y.data(),
@@ -236,9 +239,10 @@ auto calc_force_atomic_tree(System<T>& system, ConstAtomicQuadTreeContainer<T, I
 template<typename T, typename Index_t>
 auto compute_bounded_atomic_quad_tree(System<T>& system, AtomicQuadTreeContainer<T, Index_t>& tree){
     // find the minimum and maximum xy co-ordinate
+    auto r = system.body_indices();
     auto [min_size, max_size] = std::transform_reduce(
         std::execution::par_unseq,
-        std::begin(system.index), std::next(std::begin(system.index), system.size),
+        r.begin(), r.end(),
         std::make_tuple<T, T>(0, 0),
         [] (auto lhs, auto rhs) -> std::tuple<T, T> {
             return {std::min<T>(std::get<0>(lhs), std::get<0>(rhs)), std::max<T>(std::get<1>(lhs), std::get<1>(rhs))};
@@ -265,9 +269,10 @@ auto compute_bounded_atomic_quad_tree(System<T>& system, AtomicQuadTreeContainer
 template<typename T, typename Index_t>
 auto clear_tree(System<T>& system, AtomicQuadTreeContainer<T, Index_t> tree) {
     // clear the tree, ready for next iteration
+    auto r = system.body_indices();
     std::for_each_n(
         std::execution::par_unseq,
-        std::begin(system.index), tree.bump_allocator->load(memory_order_acquire),
+        r.begin(), tree.bump_allocator->load(memory_order_acquire),
         [tree] (auto tree_index) {
             if (tree_index == 0) {
                 tree.bump_allocator->store(1, memory_order_relaxed);

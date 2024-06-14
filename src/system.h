@@ -21,7 +21,9 @@ auto calc_l2_norm(T x_i, T y_i, T x_j, T y_j) -> T {
 template<typename T>
 class System {
 public:
-    size_t const size;
+    using index_t = uint32_t;
+    index_t const size;
+    index_t const max_tree_node_size;
     T const time_step;
     T const constant;
     std::vector<T> masses;
@@ -34,34 +36,28 @@ public:
     std::vector<T> accel_old_x;
     std::vector<T> accel_old_y;
 
-    // array used to feed parallel algorithms with indices
-    std::vector<std::uint32_t> index;
-
     // random generation
     std::mt19937 gen{42};  // fix random generation
     std::uniform_real_distribution<> angle_dis{0, 2 * std::numbers::pi};
     std::uniform_real_distribution<> unit_dis{0, 1};
 
-    System(size_t size, T time_step, T constant, std::size_t index_size):
-        size(size), time_step(time_step), constant(constant), masses(size),
+    System(index_t size, T time_step, T constant, index_t max_tree_node_size):
+        size(size), max_tree_node_size(max_tree_node_size),
+	time_step(time_step), constant(constant), masses(size),
         positions_x(size), positions_y(size),
         velocities_x(size), velocities_y(size),
         accel_x(size), accel_y(size),
-        accel_old_x(size), accel_old_y(size),
-        index(index_size)
-    {
-        // fill index array
-        std::iota(std::begin(index), std::end(index), 0);
-    }
+        accel_old_x(size), accel_old_y(size)
+    {}
+
+    auto body_indices() { return std::views::iota(index_t(0), size); }
 
     void accelerate_step() {
         // performs leap frog integration
-
-        //for (auto i = 0; i < size; i++) {
-
+        auto r = body_indices();
         std::for_each(
             std::execution::par_unseq,
-            std::begin(index), std::next(std::begin(index), size),
+	    r.begin(), r.end(),
             [
                 masses=masses.data(), accel_x=accel_x.data(), accel_y=accel_y.data(),
                 accel_old_x=accel_old_x.data(), accel_old_y=accel_old_y.data(),
@@ -80,28 +76,26 @@ public:
     }
 
     auto calc_energies() const {
-        auto r = std::vector<size_t>(size);
-        std::iota(std::begin(r), std::end(r), 0);
-        // auto r = std::views::iota(static_cast<size_t>(0), size);
+        auto r = body_indices();
         T kinetic_engery = static_cast<T>(0.5) * std::transform_reduce(
             std::execution::par_unseq,
-            std::begin(r), std::end(r),
+            r.begin(), r.end(),
             static_cast<T>(0), std::plus<T>{},
-            [masses=masses.data(), velocities_x=velocities_x.data(), velocities_y=velocities_y.data()] (size_t index) {
-                return masses[index] * (velocities_x[index] * velocities_x[index] + velocities_y[index] * velocities_y[index]);
+            [masses=masses.data(), velocities_x=velocities_x.data(), velocities_y=velocities_y.data()] (auto i) {
+                return masses[i] * (velocities_x[i] * velocities_x[i] + velocities_y[i] * velocities_y[i]);
             }
         );
         T gravitational_energy = -static_cast<T>(0.5) * constant * std::transform_reduce(
             std::execution::par_unseq,
-            std::begin(r), std::end(r),
+            r.begin(), r.end(),
             static_cast<T>(0), std::plus<T>{},
-            [size=size, masses=masses.data(), pos_x=positions_x.data(), pos_y=positions_y.data()] (size_t i) {
+            [size=size, masses=masses.data(), pos_x=positions_x.data(), pos_y=positions_y.data()] (auto i) {
                 T total = 0;
                 T mass_i = masses[i];
                 T pos_x_i = pos_x[i];
                 T pos_y_i = pos_y[i];
-                for (size_t j = 0; j < size; j++) {
-                    if (j != i ) {
+                for (index_t j = 0; j < size; j++) {
+                    if (j != i) {
                         total += mass_i * masses[j] / calc_l2_norm<T>(pos_x_i, pos_y_i, pos_x[j], pos_y[j]);
                     }
                 }
