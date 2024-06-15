@@ -139,30 +139,21 @@ void atomic_insert(
 }
 
 template<typename T, typename Index_t>
-auto bh_calc_force(T const particle_pos_x, T const particle_pos_y, T const theta,
-                   ConstAtomicQuadTreeContainer<T, Index_t> const tree
-) -> std::tuple<T, T> {
-
+vec<T, 2> bh_calc_force(vec<T, 2> x, T const theta, ConstAtomicQuadTreeContainer<T, Index_t> const tree) {
     Index_t tree_index = 0;
     T side_length = tree.root_side_length;
-    T particle_accel_x = 0;
-    T particle_accel_y = 0;
+    auto a = vec<T, 2>::splat(0);
 
     // stackless tree traversal
     bool came_forwards = true;
     while (tree_index != is_leaf<Index_t>) {
         Index_t next_node_index = tree.next_nodes[tree_index];
         if (came_forwards) {  // child or sibling node
-            T position_x_j = tree.centre_masses_x[tree_index];
-            T position_y_j = tree.centre_masses_y[tree_index];
-            T distance = calc_l2_norm<T>(particle_pos_x, particle_pos_y, position_x_j, position_y_j);
-
+	    vec<T, 2> xj{{tree.centre_masses_x[tree_index], tree.centre_masses_y[tree_index]}};
             // check if below threshold
-            if (tree.first_child[tree_index] == is_leaf<Index_t> || side_length / distance < theta) {
-                T mass_j = tree.total_masses[tree_index];
-                T cube_l2_norm = calc_cube_l2<T>(particle_pos_x, particle_pos_y, position_x_j, position_y_j);
-                particle_accel_x += mass_j * (position_x_j - particle_pos_x) / cube_l2_norm;
-                particle_accel_y += mass_j * (position_y_j - particle_pos_y) / cube_l2_norm;
+            if (tree.first_child[tree_index] == is_leaf<Index_t> || side_length / dist(x, xj) < theta) {
+                T mj = tree.total_masses[tree_index];
+                a += mj * (xj - x)/ dist3(x, xj);
             } else {  // visit children
                 next_node_index = tree.first_child[tree_index];
                 side_length /= static_cast<T>(2);
@@ -174,7 +165,7 @@ auto bh_calc_force(T const particle_pos_x, T const particle_pos_y, T const theta
         tree_index = next_node_index;
     }
 
-    return {particle_accel_x, particle_accel_y};
+    return a;
 }
 
 // launch kernels
@@ -185,17 +176,8 @@ auto build_atomic_tree(System<T>& system, AtomicQuadTreeContainer<T, Index_t> tr
     std::for_each(
         std::execution::par,
         r.begin(), r.end(),
-        [
-            masses=system.masses.data(),
-            positions_x=system.positions_x.data(), positions_y=system.positions_y.data(),
-            tree
-        ] (Index_t particle_index) {
-            atomic_insert<T, Index_t>(
-                // particle data
-                masses[particle_index], positions_x[particle_index], positions_y[particle_index],
-                // tree data
-                tree
-            );
+        [s=system.state(),tree] (Index_t i) {
+            atomic_insert<T, Index_t>(s.m[i], s.x[i][0], s.x[i][1], tree);
         }
     );
 }
@@ -219,18 +201,8 @@ auto calc_force_atomic_tree(System<T>& system, ConstAtomicQuadTreeContainer<T, I
     std::for_each(
         std::execution::par_unseq,
         r.begin(), r.end(),
-        [
-            p_xs=system.positions_x.data(), p_ys=system.positions_y.data(), constant=system.constant,
-            masses=system.masses.data(), s_f_x=system.accel_x.data(), s_f_y=system.accel_y.data(),
-            theta, tree
-        ] (Index_t particle_index) {
-            T const p_x = p_xs[particle_index];
-            T const p_y = p_ys[particle_index];
-
-            auto [a_x, a_y] = bh_calc_force<T, Index_t>(p_x, p_y, theta, tree);
-
-            s_f_x[particle_index] = constant * a_x;
-            s_f_y[particle_index] = constant * a_y;
+        [s=system.state(),theta, tree] (Index_t i) {
+            s.a[i] = s.c * bh_calc_force<T, Index_t>(s.x[i], theta, tree);
         }
     );
 }
@@ -244,10 +216,10 @@ auto compute_bounded_atomic_quad_tree(System<T>& system, AtomicQuadTreeContainer
         r.begin(), r.end(),
         std::make_tuple<T, T>(0, 0),
         [] (auto lhs, auto rhs) -> std::tuple<T, T> {
-            return {std::min<T>(std::get<0>(lhs), std::get<0>(rhs)), std::max<T>(std::get<1>(lhs), std::get<1>(rhs))};
+	  return {gmin(std::get<0>(lhs), std::get<0>(rhs)), gmax(std::get<1>(lhs), std::get<1>(rhs))};
         },
-        [pos_x=system.positions_x.data(), pos_y=system.positions_y.data()] (auto index) -> std::tuple<T, T> {
-            return {std::min<T>(pos_x[index], pos_y[index]), std::max<T>(pos_x[index], pos_y[index])};
+        [s=system.state()] (auto i) -> std::tuple<T, T> {
+	  return {min(s.x[i]), max(s.x[i])};
         }
     );
 

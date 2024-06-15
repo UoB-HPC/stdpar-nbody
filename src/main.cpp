@@ -47,7 +47,7 @@ auto run_precision(Arguments arguments) -> void {
                 throw std::runtime_error("Unknown simulation type");
         }
     }();
-    auto sim_algo = arguments.barnes_hut ? barnes_hut_run<T> : run_all_pairs_step<T>;
+    auto sim_algo = arguments.barnes_hut ? run_barnes_hut<T> : run_all_pairs_step<T>;
     run_simulation<T>(arguments, system, sim_algo);
 }
 

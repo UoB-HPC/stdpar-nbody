@@ -5,18 +5,7 @@
 #include <functional>
 #include <random>
 #include <vector>
-
-template<typename T>
-auto calc_cube_l2(T x_i, T y_i, T x_j, T y_j) -> T {
-    T total = std::pow<T>(std::abs(x_i - x_j), static_cast<T>(2)) + std::pow<T>(std::abs(y_i - y_j), static_cast<T>(2));
-    return std::pow<T>(total, static_cast<T>(3.0) / static_cast<T>(2.0)) + std::numeric_limits<T>::epsilon();  // to allow division by 0
-}
-
-template<typename T>
-auto calc_l2_norm(T x_i, T y_i, T x_j, T y_j) -> T {
-    T total = std::pow<T>(std::abs(x_i - x_j), static_cast<T>(2)) + std::pow<T>(std::abs(y_i - y_j), static_cast<T>(2));
-    return std::pow<T>(total, static_cast<T>(1.0) / static_cast<T>(2.0)) + std::numeric_limits<T>::epsilon();  // to allow division by 0
-}
+#include "vec.h"
 
 template<typename T>
 class System {
@@ -24,17 +13,10 @@ public:
     using index_t = uint32_t;
     index_t const size;
     index_t const max_tree_node_size;
-    T const time_step;
+    T const dt;
     T const constant;
-    std::vector<T> masses;
-    std::vector<T> positions_x;
-    std::vector<T> positions_y;
-    std::vector<T> velocities_x;
-    std::vector<T> velocities_y;
-    std::vector<T> accel_x;
-    std::vector<T> accel_y;
-    std::vector<T> accel_old_x;
-    std::vector<T> accel_old_y;
+    std::vector<T> m;
+    std::vector<vec<T, 2>> x, v, a, ao;
 
     // random generation
     std::mt19937 gen{42};  // fix random generation
@@ -43,61 +25,55 @@ public:
 
     System(index_t size, T time_step, T constant, index_t max_tree_node_size):
         size(size), max_tree_node_size(max_tree_node_size),
-	time_step(time_step), constant(constant), masses(size),
-        positions_x(size), positions_y(size),
-        velocities_x(size), velocities_y(size),
-        accel_x(size), accel_y(size),
-        accel_old_x(size), accel_old_y(size)
+	dt(time_step), constant(constant), m(size),
+        x(size), v(size), a(size), ao(size)
     {}
 
     auto body_indices() { return std::views::iota(index_t(0), size); }
 
+    // Helper to make it easier to access all state from parallel algorithms
+    struct state_t {
+      T* m;
+      vec<T, 2>* x, *v, *a, *ao;
+      T dt, c;
+      index_t sz;
+    };
+    state_t state() {
+      return { .m = m.data(), .x = x.data(), .v = v.data(), .a = a.data(), .ao = ao.data(),
+	       .dt = dt, .c = constant, .sz = size };
+    }
+    
     void accelerate_step() {
         // performs leap frog integration
         auto r = body_indices();
         std::for_each(
             std::execution::par_unseq,
 	    r.begin(), r.end(),
-            [
-                masses=masses.data(), accel_x=accel_x.data(), accel_y=accel_y.data(),
-                accel_old_x=accel_old_x.data(), accel_old_y=accel_old_y.data(),
-                positions_x=positions_x.data(), positions_y=positions_y.data(),
-                velocities_x=velocities_x.data(), velocities_y=velocities_y.data(), time_step=time_step
-            ] (auto i) {
-                positions_x[i] += velocities_x[i] * time_step + static_cast<T>(0.5) * accel_old_x[i] * time_step * time_step;
-                positions_y[i] += velocities_y[i] * time_step + static_cast<T>(0.5) * accel_old_y[i] * time_step * time_step;
-
-                velocities_x[i] += static_cast<T>(0.5) * (accel_x[i] + accel_old_x[i]) * time_step;
-                velocities_y[i] += static_cast<T>(0.5) * (accel_y[i] + accel_old_y[i]) * time_step;
-
-                accel_old_x[i] = accel_x[i];
-                accel_old_y[i] = accel_y[i];
+            [s = state()] (auto i) {
+		s.x[i] += s.dt * s.v[i] + T(0.5) * s.dt * s.dt * s.ao[i];
+                s.v[i] += T(0.5) * s.dt * (s.a[i] + s.ao[i]);
+                s.ao[i] = s.a[i];
         });
     }
 
-    auto calc_energies() const {
+    void calc_energies() const {
         auto r = body_indices();
         T kinetic_engery = static_cast<T>(0.5) * std::transform_reduce(
             std::execution::par_unseq,
             r.begin(), r.end(),
             static_cast<T>(0), std::plus<T>{},
-            [masses=masses.data(), velocities_x=velocities_x.data(), velocities_y=velocities_y.data()] (auto i) {
-                return masses[i] * (velocities_x[i] * velocities_x[i] + velocities_y[i] * velocities_y[i]);
-            }
+            [s = state()] (auto i) { return s.m[i] * l2norm(s.v[i]); }
         );
         T gravitational_energy = -static_cast<T>(0.5) * constant * std::transform_reduce(
             std::execution::par_unseq,
             r.begin(), r.end(),
             static_cast<T>(0), std::plus<T>{},
-            [size=size, masses=masses.data(), pos_x=positions_x.data(), pos_y=positions_y.data()] (auto i) {
+            [s = state()] (auto i) {
                 T total = 0;
-                T mass_i = masses[i];
-                T pos_x_i = pos_x[i];
-                T pos_y_i = pos_y[i];
-                for (index_t j = 0; j < size; j++) {
-                    if (j != i) {
-                        total += mass_i * masses[j] / calc_l2_norm<T>(pos_x_i, pos_y_i, pos_x[j], pos_y[j]);
-                    }
+                T mi = s.m[i];
+                auto xi = s.x[i];
+                for (index_t j = 0; j < s.sz; j++) {
+                    if (j != i)total += mi * s.m[j] / dist2(xi, s.x[j]);
                 }
                 return total;
             }
@@ -123,22 +99,20 @@ public:
     }
 
     void add_point(T mass, T p_x, T p_y, T v_x, T v_y) {
-        auto index = next_point;
+        auto i = next_point;
         next_point += 1;
 
-        masses[index] = mass;
-        positions_x[index] = p_x;
-        positions_y[index] = p_y;
-        velocities_x[index] = v_x;
-        velocities_y[index] = v_y;
+        m[i] = mass;
+        x[i] = vec<T, 2>{{p_x, p_y}};
+        v[i] = vec<T, 2>{{v_x, v_y}};
     }
 
     void print() const {
         for (size_t i = 0; i < size; i++) {
             std::cout << std::format(
                 "{:02}: m={: .3e}, p=({: .3e}, {: .3e}), v=({: .3e}, {: .3e}), f=({: .3e}, {: .3e})",
-                i, masses[i], positions_x[i], positions_y[i],
-                velocities_x[i], velocities_y[i], accel_x[i], accel_y[i]
+                i, m[i], x[i][0], x[i][1],
+                v[i][0], v[i][1], a[i][0], a[i][1]
             ) << std::endl;
         }
     }
