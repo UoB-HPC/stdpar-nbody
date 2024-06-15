@@ -8,6 +8,8 @@ CONDA_FILES=-I${CONDA_PREFIX}/include -L${CONDA_PREFIX}/lib
 
 STDEXEC=./stdexec/include
 
+PGI_LOCALRC=./localrc
+
 VERSION=-std=c++20
 
 # nvidia flags
