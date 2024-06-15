@@ -11,12 +11,19 @@ enum class SimulationType {
     Galaxy,
 };
 
+enum class SimulationAlgo {
+    BarnesHut,
+    AllPairs,
+    AllPairsCollapsed,
+};
+
 struct Arguments {
     std::size_t size = 1'000;
     std::size_t steps = 1;
     bool single_precision = true;
     bool barnes_hut = true;
     SimulationType simulation_type = SimulationType::Plummer;
+    SimulationAlgo simulation_algo = SimulationAlgo::BarnesHut;
     bool print_state = false;
     bool print_info = false;
     double theta = 0.5;
@@ -42,7 +49,9 @@ auto parse_args(std::vector<std::string>&& args) {
         } else if (args[arg_index] == "--double") {
             arguments.single_precision = false;
         } else if (args[arg_index] == "--all-pairs") {
-            arguments.barnes_hut = false;
+            arguments.simulation_algo = SimulationAlgo::AllPairs;
+        } else if (args[arg_index] == "--all-pairs-collapsed") {
+            arguments.simulation_algo = SimulationAlgo::AllPairsCollapsed;
         } else if (args[arg_index] == "--solar") {
             arguments.simulation_type = SimulationType::Solar;
         } else if (args[arg_index] == "--galaxy") {
@@ -59,7 +68,8 @@ auto parse_args(std::vector<std::string>&& args) {
                           "-s steps\t\tNumber of steps to run simulation for\n"
                           "--theta t\t\tTheta threshold parameter to use in Barnes-Hut\n"
                           "--double\t\tUse double precision floating point (default is single precision)\n"
-                          "--all-pairs\t\tUse all pairs simulation (default is barnes-hut)\n"
+                          "--all-pairs\t\tUse all pairs simulation algorithm (default is barnes-hut)\n"
+                          "--all-pairs-collapsed\t\tUse collapsed all pairs simulation algorithm (default is barnes-hut)\n"
                           "--solar\t\tUse solar system planet distribution (ignores size, steps are in days, uses double precision, default is plummer distribution)\n"
                           "--galaxy\t\tUse galaxy colliding model (default is plummer distribution)\n"
                           "--print-state\t\tPrint the initial and final state of the simulation\n"

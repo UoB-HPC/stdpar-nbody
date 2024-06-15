@@ -1,20 +1,7 @@
 #ifndef ATOMIC_QUAD_TREE_H
 #define ATOMIC_QUAD_TREE_H
 
-#if defined(_NVHPC_STDPAR_GPU)
-#include <cuda/atomic>
-template <typename T> using atomic = cuda::atomic<T, cuda::thread_scope_system>;
-constexpr auto memory_order_relaxed = cuda::memory_order_relaxed;
-constexpr auto memory_order_acquire = cuda::memory_order_acquire;
-constexpr auto memory_order_release = cuda::memory_order_release;
-#else // _NVHPC_STDPAR_GPU
-#include <atomic>
-template <typename T> using atomic = std::atomic<T>;
-constexpr auto memory_order_relaxed = std::memory_order_relaxed;
-constexpr auto memory_order_acquire = std::memory_order_acquire;
-constexpr auto memory_order_release = std::memory_order_release;
-#endif // _NVHPC_STDPAR_GPU
-
+#include "atomic.h"
 #include <cassert>
 #include <vector>
 
