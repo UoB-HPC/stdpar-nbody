@@ -38,7 +38,6 @@ public:
     vec<T, 2>* centre_masses;
 
     // used for mass calc
-    atomic<int32_t>* leaf_count; // stores total number of sub leaves a node has
     atomic<Index_t>* child_mass_complete;  // stores number of children that have correct mass
 
     void clear(Index_t i) {
@@ -49,7 +48,6 @@ public:
       node_status[i].store(NodeStatus::EmptyLeaf, memory_order_relaxed);
       total_masses[i] = T(0);
       centre_masses[i] = vec<T, 2>::splat(0);
-      leaf_count[i].store(0, memory_order_relaxed);
       child_mass_complete[i].store(0, memory_order_relaxed);
     }
 
@@ -65,7 +63,6 @@ public:
       qt.total_masses = new T[size];
       qt.centre_masses = new vec<T, 2>[size];
 
-      qt.leaf_count = new atomic<int32_t>[size];
       qt.child_mass_complete = new atomic<Index_t>[size];
       return qt;
     }
@@ -77,7 +74,6 @@ public:
       delete qt->node_status[];
       delete qt->total_masses[];
       delete qt->centre_masses[];
-      delete qt->leaf_count[];
       delete qt->child_mass_complete[];
       delete qt->bump_allocator;
     }

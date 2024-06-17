@@ -6,17 +6,9 @@
 // raw kernels
 template<typename T, typename Index_t>
 void atomic_calc_mass(AtomicQuadTree<T, Index_t> tree, Index_t tree_index) {
-    tree_index = 0;
-
-    // navigate to leaf
-    while (tree.node_status[tree_index].load(memory_order_acquire) != NodeStatus::FullLeaf) {
-        // work out which child to go to ...
-        auto child_index = tree.first_child[tree_index];
-        if      (tree.leaf_count[child_index + 0].fetch_sub(1, memory_order_relaxed) > 0) tree_index = child_index + 0;
-        else if (tree.leaf_count[child_index + 1].fetch_sub(1, memory_order_relaxed) > 0) tree_index = child_index + 1;
-        else if (tree.leaf_count[child_index + 2].fetch_sub(1, memory_order_relaxed) > 0) tree_index = child_index + 2;
-        else if (tree.leaf_count[child_index + 3].fetch_sub(1, memory_order_relaxed) > 0) tree_index = child_index + 3;
-    }
+    // If this node is not a leaf node with a body, we are done:
+    if (tree.node_status[tree_index].load(memory_order_relaxed) != NodeStatus::FullLeaf)
+      return;
 
     // Accumulate masses up to the root
     do {
@@ -86,7 +78,6 @@ void atomic_insert(T mass, vec<T, 2> pos, AtomicQuadTree<T, Index_t> tree) {
             }
 	    tree_index = tree.first_child[tree_index] + child_pos;
 
-            tree.leaf_count[tree_index].fetch_add(1, memory_order_relaxed);  // count needed for mass traversal
             side_length /= static_cast<T>(2);
         } else if (local_node_status == NodeStatus::EmptyLeaf && tree.node_status[tree_index].compare_exchange_weak(local_node_status, NodeStatus::Locked, memory_order_acquire, memory_order_relaxed)) {
             tree.total_masses[tree_index] = mass;
@@ -119,7 +110,6 @@ void atomic_insert(T mass, vec<T, 2> pos, AtomicQuadTree<T, Index_t> tree) {
 
             // release node and continue to try to insert body
             tree.node_status[tree_index].store(NodeStatus::NotLeaf, memory_order_release);
-	    tree.leaf_count[evicted_index].fetch_add(1, memory_order_relaxed);
         }
     }
 }
@@ -172,9 +162,9 @@ auto build_atomic_tree(System<T>& system, AtomicQuadTree<T, Index_t> tree) {
 template<typename T, typename Index_t>
 auto calc_mass_atomic_tree(System<T>& system, AtomicQuadTree<T, Index_t> tree) {
     auto r = system.body_indices();
-    std::for_each(
+    std::for_each_n(
         std::execution::par,
-        r.begin(), r.end(),
+        r.begin(), tree.capacity,
         [tree] (auto i) {
 	  atomic_calc_mass(tree, i);
         }
