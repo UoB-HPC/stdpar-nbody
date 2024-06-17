@@ -59,19 +59,36 @@ constexpr vec<T, N> operator-(vec<T, N> a, vec<T, N> b) {
 }
 
 template <typename T, int N>
-constexpr vec<T, N> operator*(T s, vec<T, N> b) {
-  for (int i = 0; i < N; ++i) b[i] = s * b[i];
-  return b;
-}
-template <typename T, int N>
-constexpr vec<T, N> operator*(vec<T, N> a, T s) {
-  for (int i = 0; i < N; ++i) a[i] = a[i] * s;
+constexpr vec<T, N>& operator*=(vec<T, N>& a, T s) {
+  for (int i = 0; i < N; ++i) a[i] *= s;
   return a;
 }
 
 template <typename T, int N>
-constexpr vec<T, N> operator/(vec<T, N> a, T s) {
+constexpr vec<T, N> operator*(T s, vec<T, N> b) {
+  b *= s;
+  return b;
+}
+template <typename T, int N>
+constexpr vec<T, N> operator*(vec<T, N> a, T s) {
+  a *= s;
+  return a;
+}
+
+template <typename T, int N>
+constexpr vec<T, N>& operator/=(vec<T, N>& a, T s) {
   for (int i = 0; i < N; ++i) a[i] /= s;
+  return a;
+}
+
+template <typename T, int N>
+constexpr vec<T, N> operator/(T s, vec<T, N> b) {
+  b /= s;
+  return b;
+}
+template <typename T, int N>
+constexpr vec<T, N> operator/(vec<T, N> a, T s) {
+  a /= s;
   return a;
 }
 
