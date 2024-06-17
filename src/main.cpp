@@ -44,7 +44,7 @@ auto run_precision(Arguments arguments) -> void {
             case SimulationType::Galaxy:
                 return build_galaxy_model<T>(arguments);
             default:
-                throw;
+                throw std::runtime_error("Unknown simulation type");
         }
     }();
     auto sim_algo = arguments.barnes_hut ? barnes_hut_run<T> : run_all_pairs_step<T>;

@@ -25,7 +25,7 @@ struct Arguments {
 
 auto parse_args(std::vector<std::string>&& args) {
     auto arguments = Arguments{};
-    auto arg_index = 0;
+    size_t arg_index = 0;
 
     for (; arg_index < args.size(); arg_index++) {
         if (args[arg_index] == "-n") {

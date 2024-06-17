@@ -4,3 +4,4 @@ cmake-build-release/
 nbody_*
 *.mp4
 *.gif
+positions.bin
