@@ -1,0 +1,1 @@
+sed -i 's@std::is_same<typename std::iterator_traits<_IteratorType>::iterator_category, std::random_access_iterator_tag>@std::integral_constant<bool, std::random_access_iterator<_IteratorType>>@g' $CONDA_PREFIX/$(uname -m)-conda-linux-gnu/include/c++/13.2.0/pstl/execution_impl.h
