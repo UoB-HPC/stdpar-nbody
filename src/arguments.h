@@ -21,7 +21,6 @@ struct Arguments {
     std::size_t size = 1'000;
     std::size_t steps = 1;
     bool single_precision = true;
-    bool barnes_hut = true;
     SimulationType simulation_type = SimulationType::Plummer;
     SimulationAlgo simulation_algo = SimulationAlgo::BarnesHut;
     bool print_state = false;
