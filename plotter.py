@@ -58,7 +58,9 @@ def read_points(file_name='positions.bin'):
     dtype = np.float32 if data_size == 4 else np.float64 if data_size == 8 else 1 / 0
 
     # load data
-    data = np.memmap(file_name, dtype, 'r', shape=(steps, 2, sim_size), offset=12)
+    data = np.memmap(file_name, dtype, 'r', shape=(steps, sim_size, 2), offset=12)
+    data = np.transpose(data, (0, 2, 1))
+
     print(f'Loaded {data.shape}')
 
     return data

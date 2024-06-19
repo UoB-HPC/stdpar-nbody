@@ -32,11 +32,12 @@ void barnes_hut_step(System<T>& system, Arguments arguments, AtomicQuadTreeConta
     auto accel_timer = clock_timer::now();
 
     if (arguments.print_info) {
+        using dur_t = std::chrono::duration<double, std::milli>;
         std::cout << std::format("Timings:\n- Build Tree {:.2f} ms\n- Calc mass {:.2f} ms\n- Calc force {:.2f} ms\n- Calc acceleration {:.2f} ms",
-                                 std::chrono::duration<double, std::milli>(built_tree_timer - start_timer).count(),
-                                 std::chrono::duration<double, std::milli>(calc_mass_timer - built_tree_timer).count(),
-                                 std::chrono::duration<double, std::milli>(force_timer - calc_mass_timer).count(),
-                                 std::chrono::duration<double, std::milli>(accel_timer - force_timer).count())
+                                 dur_t(built_tree_timer - start_timer).count(),
+                                 dur_t(calc_mass_timer - built_tree_timer).count(),
+                                 dur_t(force_timer - calc_mass_timer).count(),
+                                 dur_t(accel_timer - force_timer).count())
                   << std::endl;
         std::cout << std::format("Tree size: {}\n", tree.bump_allocator->load());
         std::cout << std::format("Total mass: {: .5f}\n", tree.total_masses[0]);
@@ -44,15 +45,11 @@ void barnes_hut_step(System<T>& system, Arguments arguments, AtomicQuadTreeConta
 }
 
 template<typename T>
-void barnes_hut_run(System<T>& system, Arguments arguments) {
+void run_barnes_hut(System<T>& system, Arguments arguments) {
     using Index_t = std::uint32_t;
 
-    // enable saving
-    std::optional<Saver<T>> saver = {};
-    if (arguments.save_output) {
-        saver = Saver<T>(arguments);
-        saver.value().save_points(system);
-    }
+    Saver<T> saver(arguments);
+    saver.save_points(system);
 
     // init tree structure
     auto vector_tree = AtomicQuadTree<T, Index_t>(system.max_tree_node_size);
@@ -62,14 +59,7 @@ void barnes_hut_run(System<T>& system, Arguments arguments) {
     }
     for (size_t step = 0; step < arguments.steps; step++) {
         barnes_hut_step<T, Index_t>(system, arguments, tree);
-
-        if (arguments.save_output) {
-            saver.value().save_points(system);
-        }
-    }
-
-    if (arguments.save_output) {
-        saver.value().finish();
+	saver.save_points(system);
     }
 }
 

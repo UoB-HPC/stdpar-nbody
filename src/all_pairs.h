@@ -10,12 +10,8 @@
 
 template<typename T>
 void run_all_pairs_step(System<T>& system, Arguments arguments) {
-    // enable saving
-    std::optional<Saver<T>> saver = {};
-    if (arguments.save_output) {
-        saver = Saver<T>(arguments);
-        saver.value().save_points(system);
-    }
+    Saver<T> saver(arguments);
+    saver.save_points(system);
 
     // all pairs algorithm time step
     for (size_t step = 0; step < arguments.steps; step++) {
@@ -24,39 +20,21 @@ void run_all_pairs_step(System<T>& system, Arguments arguments) {
         std::for_each(
             std::execution::par_unseq,
             r.begin(), r.end(),
-            [
-                p_xs=system.positions_x.data(), p_ys=system.positions_y.data(),
-                constant=system.constant, masses=system.masses.data(), size=system.size,
-                a_xs=system.accel_x.data(), a_ys=system.accel_y.data()
-            ] (auto i) {
-                T accel_x_i = 0;
-                T accel_y_i = 0;
-                T position_x_i = p_xs[i];
-                T position_y_i = p_ys[i];
-                for (size_t j = 0; j < size; j++) {
-                    T mass_j = masses[j];
-                    T position_x_j = p_xs[j];
-                    T position_y_j = p_ys[j];
-                    T cube_l2_norm = calc_cube_l2<T>(position_x_i, position_y_i, position_x_j, position_y_j);
-                    accel_x_i += mass_j * (position_x_j - position_x_i) / cube_l2_norm;
-                    accel_y_i += mass_j * (position_y_j - position_y_i) / cube_l2_norm;
+            [s = system.state()] (auto i) {
+                auto ai = vec<T, 2>::splat(0);
+                auto pi = s.x[i];
+                for (typename System<T>::index_t j = 0; j < s.sz; j++) {
+                    auto pj = s.x[j];
+                    ai += s.m[j] * (pj - pi) / dist3(pi, pj);
                 }
-                a_xs[i] = constant * accel_x_i;
-                a_ys[i] = constant * accel_y_i;
+                s.a[i] = s.c * ai;
         });
 
         // position update step
         system.accelerate_step();
 
         // save positions
-        if (arguments.save_output) {
-            saver.value().save_points(system);
-        }
-    }
-
-    // close saving file
-    if (arguments.save_output) {
-        saver.value().finish();
+	saver.save_points(system);
     }
 }
 
