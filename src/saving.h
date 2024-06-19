@@ -42,7 +42,6 @@ private:
     std::uint32_t data_size = sizeof(T);
 
     std::ofstream out_file;
-    std::vector<T> x, y;
 };
 
 #endif //SAVING_H
