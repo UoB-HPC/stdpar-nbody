@@ -7,6 +7,7 @@
 #include "atomic.h"
 #include "system.h"
 #include "saving.h"
+#include "counting_iterator.h"
 
 template<typename T>
 void run_all_pairs_step(System<T>& system, Arguments arguments) {
@@ -47,7 +48,7 @@ void run_all_pairs_collapsed_step(System<T>& system, Arguments arguments) {
     // all pairs algorithm time step
     for (size_t step = 0; step < arguments.steps; step++) {
         // force step
-        auto it = thrust::counting_iterator<uint64_t>(0);
+        auto it = counting_iterator<uint64_t>(0);
         std::for_each_n(
             std::execution::par_unseq,
             it, system.size * system.size,
