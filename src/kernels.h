@@ -213,12 +213,12 @@ auto compute_bounded_atomic_quad_tree(System<T>& system, AtomicQuadTree<T, Index
 }
 
 template<typename T, typename Index_t>
-auto clear_tree(System<T>& system, AtomicQuadTree<T, Index_t> tree) {
+auto clear_tree(System<T>& system, AtomicQuadTree<T, Index_t> tree, Index_t last_node) {
     // clear the tree, ready for next iteration
     auto r = system.body_indices();
     std::for_each_n(
         std::execution::par_unseq,
-        r.begin(), tree.bump_allocator->load(memory_order_acquire),
+        r.begin(), last_node,
         [tree] (auto tree_index) mutable { tree.clear(tree_index); });
 }
 
