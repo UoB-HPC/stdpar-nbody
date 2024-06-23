@@ -57,16 +57,16 @@ void run_all_pairs_collapsed_step(System<T>& system, Arguments arguments) {
 	        auto i = p % s.sz;
 		if (i == j) {
 		  // Reset to zero by subtracting old acceleration:
-		  atomic_ref{s.a[i][0]}.fetch_sub(s.ao[i][0], memory_order_relaxed);
-		  atomic_ref{s.a[i][1]}.fetch_sub(s.ao[i][1], memory_order_relaxed);
+		  atomic_ref<T>{s.a[i][0]}.fetch_sub(s.ao[i][0], memory_order_relaxed);
+		  atomic_ref<T>{s.a[i][1]}.fetch_sub(s.ao[i][1], memory_order_relaxed);
 		  return;
 		}
 
 		auto pi = s.x[i];
 		auto pj = s.x[j];
 		auto a = s.c * s.m[j] * (pj - pi) / dist3(pi, pj);
-		atomic_ref{s.a[i][0]}.fetch_add(a[0], memory_order_relaxed);
-		atomic_ref{s.a[i][1]}.fetch_add(a[1], memory_order_relaxed);
+		atomic_ref<T>{s.a[i][0]}.fetch_add(a[0], memory_order_relaxed);
+		atomic_ref<T>{s.a[i][1]}.fetch_add(a[1], memory_order_relaxed);
         });
         // position update step
         system.accelerate_step();
