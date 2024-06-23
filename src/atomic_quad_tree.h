@@ -68,13 +68,13 @@ public:
     }
 
     static void dealloc(AtomicQuadTree* qt) {
-      delete qt->first_child[];
-      delete qt->next_nodes[];
-      delete qt->parent[];
-      delete qt->node_status[];
-      delete qt->total_masses[];
-      delete qt->centre_masses[];
-      delete qt->child_mass_complete[];
+      delete[] qt->first_child;
+      delete[] qt->next_nodes;
+      delete[] qt->parent;
+      delete[] qt->node_status;
+      delete[] qt->total_masses;
+      delete[] qt->centre_masses;
+      delete[] qt->child_mass_complete;
       delete qt->bump_allocator;
     }
 };
