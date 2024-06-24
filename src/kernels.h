@@ -7,21 +7,21 @@
 template<typename T, typename Index_t>
 void atomic_calc_mass(AtomicQuadTree<T, Index_t> tree, Index_t tree_index) {
     // If this node is not a leaf node with a body, we are done:
-    if (tree.node_status[tree_index].load(memory_order_relaxed) != NodeStatus::FullLeaf)
+    if (tree.first_child[tree_index] != tree.body)
       return;
 
     // Accumulate masses up to the root
     do {
         // move up to parent
         tree_index = tree.parent[tree_index];
-        if (tree_index == is_leaf<Index_t>) break;  // if reached root
+        if (tree_index == tree.empty) break;  // if reached root
 
 	// No thread will be arriving from siblings that are empty leaves,
 	// so count those:
 	uint32_t local_leaf_count = 0;
 	auto leaf_child_index = tree.first_child[tree_index];
 	for (int i = 0; i < 4; ++i)
-	  local_leaf_count += static_cast<uint32_t>(tree.node_status[leaf_child_index + i].load(memory_order_relaxed) == NodeStatus::EmptyLeaf);
+	  local_leaf_count += static_cast<uint32_t>(tree.first_child[leaf_child_index + i] == tree.empty);
 	uint32_t expected_count = 4 - 1 - local_leaf_count;
 
 	// Arrive at parent releasing previous masses accumulated, and acquiring masses accumulated by other threads:
@@ -52,8 +52,10 @@ void atomic_insert(T mass, vec<T, 2> pos, AtomicQuadTree<T, Index_t> tree) {
 
     while (true) {
         // find current node status
-        auto local_node_status = tree.node_status[tree_index].load(memory_order_acquire);
-        if (local_node_status == NodeStatus::NotLeaf) {  // if the node has children
+        atomic_ref<Index_t> fc{tree.first_child[tree_index]};
+        auto status = fc.load(memory_order_acquire);
+        if (status != tree.empty && status != tree.body && status != tree.locked) {
+	    // If the node has children
             T half_length = side_length / static_cast<T>(4);  // / 2 is for new quad length, then / 2 is for half length
 
 	    Index_t child_pos;
@@ -77,17 +79,18 @@ void atomic_insert(T mass, vec<T, 2> pos, AtomicQuadTree<T, Index_t> tree) {
                 }
             }
 	    tree_index = tree.first_child[tree_index] + child_pos;
-
             side_length /= static_cast<T>(2);
-        } else if (local_node_status == NodeStatus::EmptyLeaf && tree.node_status[tree_index].compare_exchange_weak(local_node_status, NodeStatus::Locked, memory_order_acquire, memory_order_relaxed)) {
+        } else if (status == tree.empty && fc.compare_exchange_weak(status, tree.locked, memory_order_acquire)) {
+            // compare_exchange_weak is fine because if it fails spuriously, we'll retry again
             tree.total_masses[tree_index] = mass;
             tree.centre_masses[tree_index] = pos;
-            tree.node_status[tree_index].store(NodeStatus::FullLeaf, memory_order_release);
+            fc.store(tree.body, memory_order_release);
             break;
-        } else if (local_node_status == NodeStatus::FullLeaf && tree.node_status[tree_index].compare_exchange_weak(local_node_status, NodeStatus::Locked, memory_order_acquire, memory_order_relaxed)) {
-            // create children
+        } else if (status == tree.body && fc.compare_exchange_weak(status, tree.locked, memory_order_acquire)) {
+            // compare_exchange_weak is fine because if it fails spuriously, we'll retry again
+
+	    // create children
             Index_t first_child_index = tree.bump_allocator->fetch_add(4, memory_order_relaxed);
-            tree.first_child[tree_index] = first_child_index;
 
             tree.next_nodes[first_child_index + 0] = first_child_index + 1;
             tree.next_nodes[first_child_index + 1] = first_child_index + 2;
@@ -96,7 +99,7 @@ void atomic_insert(T mass, vec<T, 2> pos, AtomicQuadTree<T, Index_t> tree) {
 
 	    for (int i = 0; i < 4; ++i) {
 	      tree.parent[first_child_index + i] = tree_index;
-	      tree.node_status[first_child_index + i].store(NodeStatus::EmptyLeaf, memory_order_relaxed);
+	      tree.first_child[first_child_index + i] = tree.empty;
 	    }
 
             // end of children creation
@@ -106,10 +109,10 @@ void atomic_insert(T mass, vec<T, 2> pos, AtomicQuadTree<T, Index_t> tree) {
             Index_t evicted_index = first_child_index + 2 * static_cast<Index_t>(p_x[0] >= divide[0]) + 1 * static_cast<Index_t>(p_x[1] <= divide[1]);
             tree.centre_masses[evicted_index] = p_x;
             tree.total_masses[evicted_index] = tree.total_masses[tree_index];
-            tree.node_status[evicted_index].store(NodeStatus::FullLeaf, memory_order_relaxed);
+            tree.first_child[evicted_index] = tree.body;
 
             // release node and continue to try to insert body
-            tree.node_status[tree_index].store(NodeStatus::NotLeaf, memory_order_release);
+            fc.store(first_child_index, memory_order_release);
         }
     }
 }
@@ -122,12 +125,13 @@ vec<T, 2> bh_calc_force(vec<T, 2> x, T const theta, AtomicQuadTree<T, Index_t> c
 
     // stackless tree traversal
     bool came_forwards = true;
-    while (tree_index != is_leaf<Index_t>) {
+    while (tree_index != tree.empty) {
         Index_t next_node_index = tree.next_nodes[tree_index];
         if (came_forwards) {  // child or sibling node
             vec<T, 2> xj = tree.centre_masses[tree_index];
             // check if below threshold
-            if (tree.first_child[tree_index] == is_leaf<Index_t> || side_length / dist(x, xj) < theta) {
+	    auto fc = tree.first_child[tree_index];
+            if (fc == tree.empty || fc == tree.body || side_length / dist(x, xj) < theta) {
                 T mj = tree.total_masses[tree_index];
                 a += mj * (xj - x)/ dist3(x, xj);
             } else {  // visit children
@@ -208,8 +212,8 @@ auto compute_bounded_atomic_quad_tree(System<T>& system, AtomicQuadTree<T, Index
     // add root node to tree
     tree.root_side_length = max_size - min_size;
     tree.root_x = vec<T, 2>::splat(divide);
-    tree.next_nodes[0] = is_leaf<Index_t>;
-    tree.node_status[0].store(NodeStatus::EmptyLeaf, memory_order_relaxed);
+    tree.next_nodes[0] = tree.empty;
+    tree.first_child[0] = tree.empty;
 }
 
 template<typename T, typename Index_t>
