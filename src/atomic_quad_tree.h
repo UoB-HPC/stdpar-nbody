@@ -20,98 +20,62 @@ enum class NodeStatus : uint32_t {
 };
 static_assert(atomic<NodeStatus>::is_always_lock_free);
 
-// container class for lambdas
-template<typename T, typename Index_t>
-class ConstAtomicQuadTreeContainer {
-public:
-    T const root_side_length;
-    // T const root_x;
-    // T const root_y;
-    T const * const total_masses;
-    T const * const centre_masses_x;
-    T const * const centre_masses_y;
-    Index_t const * const first_child;
-    Index_t const * const next_nodes;
-    // atomic<NodeStatus> const * const node_status;
-
-    // atomic<int32_t> const * const leaf_count;
-    // atomic<Index_t> const * const child_mass_complete;
-    Index_t const * const parent;
-
-    // only pointer field not a vector
-    // atomic<Index_t> const * const bump_allocator;
-};
-
-// container class for lambdas
-template<typename T, typename Index_t>
-class AtomicQuadTreeContainer {
-public:
-    T root_side_length;
-    T root_x;
-    T root_y;
-    T * const total_masses;
-    T * const centre_masses_x;
-    T * const centre_masses_y;
-    Index_t * const first_child;
-    Index_t * const next_nodes;
-    atomic<NodeStatus> * const node_status;
-
-    atomic<int32_t> * const leaf_count;
-    atomic<Index_t> * const child_mass_complete;
-    Index_t * const parent;
-
-    // only a pointer field not a vector
-    atomic<Index_t> * const bump_allocator;
-
-    auto to_const() {
-        return ConstAtomicQuadTreeContainer<T, Index_t>{
-                root_side_length, // root_x, root_y,
-                total_masses, centre_masses_x, centre_masses_y,
-                first_child, next_nodes, // node_status,
-                //leaf_count, child_mass_complete,
-                parent,
-                //bump_allocator
-        };
-    }
-};
-
 // Quad tree using Class of Vectors (CoV) (i.e. Structure of Arrays)
 template<typename T, typename Index_t>
 class AtomicQuadTree {
 public:
+    Index_t capacity;
     T root_side_length;
-    T root_x;
-    T root_y;
-    std::vector<T> total_masses;
-    std::vector<T> centre_masses_x;
-    std::vector<T> centre_masses_y;
-    std::vector<Index_t> first_child;
-    std::vector<Index_t> next_nodes;
-    std::vector<atomic<NodeStatus>> node_status;
+    vec<T, 2> root_x;
+    Index_t* first_child;
+    Index_t* next_nodes;
+    Index_t* parent;
+    atomic<NodeStatus>* node_status;
+    // bump ptr used to keep track of allocated nodes
+    atomic<Index_t>* bump_allocator;
+
+    T* total_masses;
+    vec<T, 2>* centre_masses;
 
     // used for mass calc
-    std::vector<atomic<int32_t>> leaf_count;  // stores total number of sub leaves a node has
-    std::vector<atomic<Index_t>> child_mass_complete;  // stores number of children that have correct mass
-    std::vector<Index_t> parent;
+    atomic<Index_t>* child_mass_complete;  // stores number of children that have correct mass
 
-    // bump ptr used to keep track of allocated nodes
-    std::unique_ptr<atomic<Index_t>> bump_allocator = std::make_unique<atomic<Index_t>>(1);
-
-    explicit AtomicQuadTree(size_t size)
-        : total_masses(size, 0), centre_masses_x(size, 0), centre_masses_y(size, 0),
-          first_child(size, is_leaf<Index_t>), next_nodes(size, is_leaf<Index_t>), node_status(size),
-          leaf_count(size), child_mass_complete(size), parent(size, is_leaf<Index_t>){
-
+    void clear(Index_t i) {
+      if (i == 0) bump_allocator->store(1, memory_order_relaxed);
+      first_child[i] = is_leaf<Index_t>;
+      next_nodes[i] = is_leaf<Index_t>;
+      parent[i] = is_leaf<Index_t>;
+      node_status[i].store(NodeStatus::EmptyLeaf, memory_order_relaxed);
+      total_masses[i] = T(0);
+      centre_masses[i] = vec<T, 2>::splat(0);
+      child_mass_complete[i].store(0, memory_order_relaxed);
     }
 
-    auto get_container() {
-        return AtomicQuadTreeContainer<T, Index_t>{
-            root_side_length, root_x, root_y,
-            total_masses.data(), centre_masses_x.data(), centre_masses_y.data(),
-            first_child.data(), next_nodes.data(), node_status.data(),
-            leaf_count.data(), child_mass_complete.data(), parent.data(),
-            bump_allocator.get()
-        };
+    static AtomicQuadTree alloc(size_t size) {
+      AtomicQuadTree qt;
+      qt.capacity = size;
+      qt.first_child = new Index_t[size];
+      qt.next_nodes = new Index_t[size];
+      qt.parent = new Index_t[size];
+      qt.node_status = new atomic<NodeStatus>[size];
+      qt.bump_allocator = new atomic<Index_t>(1);
+
+      qt.total_masses = new T[size];
+      qt.centre_masses = new vec<T, 2>[size];
+
+      qt.child_mass_complete = new atomic<Index_t>[size];
+      return qt;
+    }
+
+    static void dealloc(AtomicQuadTree* qt) {
+      delete[] qt->first_child;
+      delete[] qt->next_nodes;
+      delete[] qt->parent;
+      delete[] qt->node_status;
+      delete[] qt->total_masses;
+      delete[] qt->centre_masses;
+      delete[] qt->child_mass_complete;
+      delete qt->bump_allocator;
     }
 };
 
