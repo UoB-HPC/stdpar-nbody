@@ -8,13 +8,18 @@ import numpy as np
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Create animation from nbody output.")
-    sim_group = parser.add_mutually_exclusive_group(required=True)
+    subparsers = parser.add_subparsers(dest='command')
+
+    parser_pos = subparsers.add_parser('pos', help='Animate positions')
+    sim_group = parser_pos.add_mutually_exclusive_group(required=True)
     sim_group.add_argument('--galaxy', action='store_true', help="Select galaxy animation.")
     sim_group.add_argument('--solar', action='store_true', help="Select solar animation.")
 
-    file_group = parser.add_mutually_exclusive_group(required=True)
+    file_group = parser_pos.add_mutually_exclusive_group(required=True)
     file_group.add_argument('--mp4', action='store_true', help="Save as mp4 file.")
     file_group.add_argument('--gif', action='store_true', help="Save as gif file.")
+
+    parser_energy = subparsers.add_parser('energy', help='Plot energy')
 
     return parser.parse_args()
 
@@ -66,6 +71,24 @@ def read_points(file_name='positions.bin'):
     return data
 
 
+def read_energy(file_name='energy.bin'):
+    print(f'Reading {file_name}...')
+    # read properties of file
+    file_info = np.memmap(file_name, np.uint32, 'r', shape=2)
+
+    # extract properties
+    steps, data_size = file_info
+    dtype = np.float32 if data_size == 4 else np.float64 if data_size == 8 else 1 / 0
+
+    # load data
+    data = np.memmap(file_name, dtype, 'r', shape=(steps, 2), offset=8)
+    data = np.swapaxes(data, 0, 1)
+
+    print(f'Loaded {data.shape}')
+
+    return data
+
+
 def animate_galaxy():
     data = read_points()
 
@@ -84,9 +107,15 @@ def animate_galaxy():
         n = step.shape[-1]
         step_1, step_2 = step[:, :n // 2], step[:, n // 2:]
 
+        bh1, step_1 = step_1[:, 0], step_1[:, 1:]
+        bh2, step_2 = step_2[:, 0], step_2[:, 1:]
+
         artist1 = ax.scatter(*step_1, marker='o', animated=True, color='red', s=1)
         artist2 = ax.scatter(*step_2, marker='o', animated=True, color='blue', s=1)
-        artists.append([artist1, artist2])
+        artist3 = ax.scatter(*bh1, animated=True, color='red')
+        artist4 = ax.scatter(*bh2, animated=True, color='blue')
+
+        artists.append([artist1, artist2, artist3, artist4])
 
     print(f'There are {len(artists)} frames')
 
@@ -136,16 +165,31 @@ def animate_solar_system():
     return ani
 
 
+def plot_energy():
+    energy_values = read_energy()
 
+    plt.plot(energy_values[0, ...], label='Kinetic')
+    plt.plot(energy_values[1, ...], label='Gravitational')
+    plt.plot(energy_values[0, ...] + energy_values[1, ...], label='Total')
+
+    plt.xlabel('Timestep')
+    plt.ylabel('Energy')
+    plt.title('Energy by Time in n-body simulation')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
 
 def main(args):
-    if args.galaxy:
-        ani = animate_galaxy()
-    else:
-        ani = animate_solar_system()
+    if args.command == 'pos':
+        if args.galaxy:
+            ani = animate_galaxy()
+        else:
+            ani = animate_solar_system()
 
-    save_animation(ani, mp4=args.mp4)
+        save_animation(ani, mp4=args.mp4)
+    else:
+        plot_energy()
 
 
 if __name__ == '__main__':

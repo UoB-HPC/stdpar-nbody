@@ -71,10 +71,10 @@ Run a large Barnes-Hut simulation with 1,000,000 bodies:
 $ ./nbody_gpu -s 5 -n 1000000
 ```
 
-Generate the above GIF:
+Generate a similar image to the above GIF:
 ```bash
-$ ./nbody_gpu -s 1000 -n 10000 --save --galaxy
-$ python3 plotter.py --galaxy --gif
+$ ./nbody_gpu -s 1000 -n 10000 --save-pos --galaxy
+$ python3 plotter.py pos --galaxy --gif
 ```
 
 To find other program arguments:
