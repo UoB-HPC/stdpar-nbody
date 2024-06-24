@@ -18,7 +18,7 @@ void run_simulation(Arguments arguments, System<T>& system, sim_func_t<T> sim_al
         std::cout << "Starting state:" << std::endl;
         system.print();
     }
-    std::cout << "Starting simulation\n" << std::endl;
+    std::cout << "Starting simulation" << std::endl;
     auto start = clock_timer::now();
 
     sim_algo(system, arguments);
@@ -47,8 +47,14 @@ auto run_precision(Arguments arguments) -> void {
                 throw std::runtime_error("Unknown simulation type");
         }
     }();
-    auto sim_algo = arguments.barnes_hut ? run_barnes_hut<T> : run_all_pairs_step<T>;
-    run_simulation<T>(arguments, system, sim_algo);
+    switch(arguments.simulation_algo) {
+    case SimulationAlgo::BarnesHut:
+      return run_simulation<T>(arguments, system, run_barnes_hut<T>);
+    case SimulationAlgo::AllPairs:
+      return run_simulation<T>(arguments, system, run_all_pairs_step<T>);
+    case SimulationAlgo::AllPairsCollapsed:
+      return run_simulation<T>(arguments, system, run_all_pairs_collapsed_step<T>);
+    }
 }
 
 
