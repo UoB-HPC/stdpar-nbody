@@ -91,18 +91,10 @@ void atomic_insert(T mass, vec<T, 2> pos, AtomicQuadTree<T, Index_t> tree) {
 
 	    // create children
             Index_t first_child_index = tree.bump_allocator->fetch_add(4, memory_order_relaxed);
-
-            tree.next_nodes[first_child_index + 0] = first_child_index + 1;
-            tree.next_nodes[first_child_index + 1] = first_child_index + 2;
-            tree.next_nodes[first_child_index + 2] = first_child_index + 3;
-            tree.next_nodes[first_child_index + 3] = tree_index;  // link back to parent
-
 	    for (int i = 0; i < 4; ++i) {
 	      tree.parent[first_child_index + i] = tree_index;
 	      tree.first_child[first_child_index + i] = tree.empty;
 	    }
-
-            // end of children creation
 
             // evict body at current index and insert into children keeping node locked
             auto p_x = tree.centre_masses[tree_index];
@@ -126,7 +118,7 @@ vec<T, 2> bh_calc_force(vec<T, 2> x, T const theta, AtomicQuadTree<T, Index_t> c
     // stackless tree traversal
     bool came_forwards = true;
     while (tree_index != tree.empty) {
-        Index_t next_node_index = tree.next_nodes[tree_index];
+        Index_t next_node_index = tree.next_node(tree_index);
         if (came_forwards) {  // child or sibling node
             vec<T, 2> xj = tree.centre_masses[tree_index];
             // check if below threshold
@@ -212,7 +204,6 @@ auto compute_bounded_atomic_quad_tree(System<T>& system, AtomicQuadTree<T, Index
     // add root node to tree
     tree.root_side_length = max_size - min_size;
     tree.root_x = vec<T, 2>::splat(divide);
-    tree.next_nodes[0] = tree.empty;
     tree.first_child[0] = tree.empty;
 }
 

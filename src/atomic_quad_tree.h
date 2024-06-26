@@ -15,7 +15,6 @@ public:
     T root_side_length;
     vec<T, 2> root_x;
     Index_t* first_child;
-    Index_t* next_nodes;
     Index_t* parent;
     // bump ptr used to keep track of allocated nodes
     atomic<Index_t>* bump_allocator;
@@ -30,10 +29,19 @@ public:
     static constexpr Index_t body = empty - 1;
     static constexpr Index_t locked = body - 1;
 
+    Index_t next_node(Index_t i) const noexcept {
+      // Root node:
+      if (i == 0) return empty;
+      // Sibling group
+      Index_t sg = (i - 1) / 4;
+      // Child within sibling group
+      Index_t cp = (i - 1) % 4;
+      return cp == 3? parent[i] : i + 1;
+    }
+
     void clear(Index_t i) {
       if (i == 0) bump_allocator->store(1, memory_order_relaxed);
       first_child[i] = empty;
-      next_nodes[i] = empty;
       parent[i] = empty;
       total_masses[i] = T(0);
       centre_masses[i] = vec<T, 2>::splat(0);
@@ -44,7 +52,6 @@ public:
       AtomicQuadTree qt;
       qt.capacity = size;
       qt.first_child = new Index_t[size];
-      qt.next_nodes = new Index_t[size];
       qt.parent = new Index_t[size];
       qt.bump_allocator = new atomic<Index_t>(1);
 
@@ -57,7 +64,6 @@ public:
 
     static void dealloc(AtomicQuadTree* qt) {
       delete[] qt->first_child;
-      delete[] qt->next_nodes;
       delete[] qt->parent;
       delete[] qt->total_masses;
       delete[] qt->centre_masses;
