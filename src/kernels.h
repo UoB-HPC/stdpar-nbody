@@ -16,21 +16,21 @@ void atomic_calc_mass(AtomicQuadTree<T, Index_t> tree, Index_t tree_index) {
         tree_index = tree.parent[tree.sg(tree_index)];
         if (tree_index == tree.empty) break;  // if reached root
 
-	// No thread will be arriving from siblings that are empty leaves,
-	// so count those:
-	uint32_t local_leaf_count = 0;
-	auto leaf_child_index = tree.first_child[tree_index];
-	for (int i = 0; i < 4; ++i)
-	  local_leaf_count += static_cast<uint32_t>(tree.first_child[leaf_child_index + i] == tree.empty);
-	uint32_t expected_count = 4 - 1 - local_leaf_count;
+        // No thread will be arriving from siblings that are empty leaves,
+        // so count those:
+        uint32_t local_leaf_count = 0;
+        auto leaf_child_index = tree.first_child[tree_index];
+        for (int i = 0; i < 4; ++i)
+          local_leaf_count += static_cast<uint32_t>(tree.first_child[leaf_child_index + i] == tree.empty);
+        uint32_t expected_count = 4 - 1 - local_leaf_count;
 
-	// Arrive at parent releasing previous masses accumulated, and acquiring masses accumulated by other threads:
+        // Arrive at parent releasing previous masses accumulated, and acquiring masses accumulated by other threads:
         if (tree.child_mass_complete[tree_index].fetch_add(1, memory_order_acq_rel) != expected_count)
-	  break;
+          break;
 
         // pick up all child masses
-	T mass = 0;
-	auto centre_masses = vec<T, 2>::splat(0);
+        T mass = 0;
+        auto centre_masses = vec<T, 2>::splat(0);
         for (auto i = 0; i < 4; i++) {
             auto child_index = tree.first_child[tree_index] + i;
             auto child_total_mass = tree.total_masses[child_index];
@@ -55,10 +55,10 @@ void atomic_insert(T mass, vec<T, 2> pos, AtomicQuadTree<T, Index_t> tree) {
         atomic_ref<Index_t> fc{tree.first_child[tree_index]};
         auto status = fc.load(memory_order_acquire);
         if (status != tree.empty && status != tree.body && status != tree.locked) {
-	    // If the node has children
+            // If the node has children
             T half_length = side_length / static_cast<T>(4);  // / 2 is for new quad length, then / 2 is for half length
 
-	    Index_t child_pos;
+            Index_t child_pos;
             if (pos[0] < divide[0])  {  // left
                 divide[0] -= half_length;
                 if (pos[1] > divide[1]) {  // top left
@@ -78,7 +78,7 @@ void atomic_insert(T mass, vec<T, 2> pos, AtomicQuadTree<T, Index_t> tree) {
                     child_pos = 3;
                 }
             }
-	    tree_index = tree.first_child[tree_index] + child_pos;
+            tree_index = tree.first_child[tree_index] + child_pos;
             side_length /= static_cast<T>(2);
         } else if (status == tree.empty && fc.compare_exchange_weak(status, tree.locked, memory_order_acquire)) {
             // compare_exchange_weak is fine because if it fails spuriously, we'll retry again
@@ -89,10 +89,10 @@ void atomic_insert(T mass, vec<T, 2> pos, AtomicQuadTree<T, Index_t> tree) {
         } else if (status == tree.body && fc.compare_exchange_weak(status, tree.locked, memory_order_acquire)) {
             // compare_exchange_weak is fine because if it fails spuriously, we'll retry again
 
-	    // create children
+            // create children
             Index_t first_child_index = tree.bump_allocator->fetch_add(4, memory_order_relaxed);
-	    tree.parent[tree.sg(first_child_index)] = tree_index;
-	    for (int i = 0; i < 4; ++i) tree.first_child[first_child_index + i] = tree.empty;
+            tree.parent[tree.sg(first_child_index)] = tree_index;
+            for (int i = 0; i < 4; ++i) tree.first_child[first_child_index + i] = tree.empty;
 
             // evict body at current index and insert into children keeping node locked
             auto p_x = tree.centre_masses[tree_index];
@@ -120,7 +120,7 @@ vec<T, 2> bh_calc_force(vec<T, 2> x, T const theta, AtomicQuadTree<T, Index_t> c
         if (came_forwards) {  // child or sibling node
             vec<T, 2> xj = tree.centre_masses[tree_index];
             // check if below threshold
-	    auto fc = tree.first_child[tree_index];
+            auto fc = tree.first_child[tree_index];
             if (fc == tree.empty || fc == tree.body || side_length / dist(x, xj) < theta) {
                 T mj = tree.total_masses[tree_index];
                 a += mj * (xj - x)/ dist3(x, xj);
@@ -160,7 +160,7 @@ auto calc_mass_atomic_tree(System<T>& system, AtomicQuadTree<T, Index_t> tree) {
         std::execution::par,
         r.begin(), tree.capacity,
         [tree] (auto i) {
-	  atomic_calc_mass(tree, i);
+          atomic_calc_mass(tree, i);
         }
     );
 }
@@ -186,10 +186,10 @@ auto compute_bounded_atomic_quad_tree(System<T>& system, AtomicQuadTree<T, Index
         r.begin(), r.end(),
         std::make_tuple<T, T>(0, 0),
         [] (auto lhs, auto rhs) -> std::tuple<T, T> {
-	  return {gmin(std::get<0>(lhs), std::get<0>(rhs)), gmax(std::get<1>(lhs), std::get<1>(rhs))};
+          return {gmin(std::get<0>(lhs), std::get<0>(rhs)), gmax(std::get<1>(lhs), std::get<1>(rhs))};
         },
         [s=system.state()] (auto i) -> std::tuple<T, T> {
-	  return {min(s.x[i]), max(s.x[i])};
+          return {min(s.x[i]), max(s.x[i])};
         }
     );
 
