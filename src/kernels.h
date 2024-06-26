@@ -13,7 +13,7 @@ void atomic_calc_mass(AtomicQuadTree<T, Index_t> tree, Index_t tree_index) {
     // Accumulate masses up to the root
     do {
         // move up to parent
-        tree_index = tree.parent[tree_index];
+        tree_index = tree.parent[tree.sg(tree_index)];
         if (tree_index == tree.empty) break;  // if reached root
 
 	// No thread will be arriving from siblings that are empty leaves,
@@ -91,10 +91,8 @@ void atomic_insert(T mass, vec<T, 2> pos, AtomicQuadTree<T, Index_t> tree) {
 
 	    // create children
             Index_t first_child_index = tree.bump_allocator->fetch_add(4, memory_order_relaxed);
-	    for (int i = 0; i < 4; ++i) {
-	      tree.parent[first_child_index + i] = tree_index;
-	      tree.first_child[first_child_index + i] = tree.empty;
-	    }
+	    tree.parent[tree.sg(first_child_index)] = tree_index;
+	    for (int i = 0; i < 4; ++i) tree.first_child[first_child_index + i] = tree.empty;
 
             // evict body at current index and insert into children keeping node locked
             auto p_x = tree.centre_masses[tree_index];

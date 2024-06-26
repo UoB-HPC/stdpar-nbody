@@ -36,13 +36,18 @@ public:
       Index_t sg = (i - 1) / 4;
       // Child within sibling group
       Index_t cp = (i - 1) % 4;
-      return cp == 3? parent[i] : i + 1;
+      return cp == 3? parent[sg] : i + 1;
+    }
+
+    // Index of the "sibling group" of i:
+    Index_t sg(Index_t i) {
+      return i == 0? 0 : (i - 1) / 4;
     }
 
     void clear(Index_t i) {
       if (i == 0) bump_allocator->store(1, memory_order_relaxed);
       first_child[i] = empty;
-      parent[i] = empty;
+      parent[sg(i)] = empty;
       total_masses[i] = T(0);
       centre_masses[i] = vec<T, 2>::splat(0);
       child_mass_complete[i].store(0, memory_order_relaxed);
@@ -52,7 +57,7 @@ public:
       AtomicQuadTree qt;
       qt.capacity = size;
       qt.first_child = new Index_t[size];
-      qt.parent = new Index_t[size];
+      qt.parent = new Index_t[1 + size/4];
       qt.bump_allocator = new atomic<Index_t>(1);
 
       qt.total_masses = new T[size];
