@@ -12,7 +12,7 @@
 template<typename T>
 void run_all_pairs_step(System<T>& system, Arguments arguments) {
     Saver<T> saver(arguments);
-    saver.save_points(system);
+    saver.save_all(system);
 
     // all pairs algorithm time step
     for (size_t step = 0; step < arguments.steps; step++) {
@@ -35,7 +35,7 @@ void run_all_pairs_step(System<T>& system, Arguments arguments) {
         system.accelerate_step();
 
         // save positions
-	saver.save_points(system);
+        saver.save_all(system);
     }
 }
 
@@ -43,7 +43,7 @@ void run_all_pairs_step(System<T>& system, Arguments arguments) {
 template<typename T>
 void run_all_pairs_collapsed_step(System<T>& system, Arguments arguments) {
     Saver<T> saver(arguments);
-    saver.save_points(system);
+    saver.save_all(system);
 
     // all pairs algorithm time step
     for (size_t step = 0; step < arguments.steps; step++) {
@@ -72,7 +72,7 @@ void run_all_pairs_collapsed_step(System<T>& system, Arguments arguments) {
         system.accelerate_step();
 
         // save positions
-	saver.save_points(system);
+	saver.save_all(system);
     }
 }
 

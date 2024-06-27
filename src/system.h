@@ -29,7 +29,7 @@ public:
         x(size), v(size), a(size), ao(size)
     {}
 
-    auto body_indices() { return std::views::iota(index_t(0), size); }
+    auto body_indices() const { return std::views::iota(index_t(0), size); }
 
     // Helper to make it easier to access all state from parallel algorithms
     struct state_t {
@@ -56,32 +56,30 @@ public:
         });
     }
 
-    void calc_energies() const {
+    auto calc_energies() const -> std::tuple<T, T> {
         auto r = body_indices();
-        T kinetic_engery = static_cast<T>(0.5) * std::transform_reduce(
+        T kinetic_energy = static_cast<T>(0.5) * std::transform_reduce(
             std::execution::par_unseq,
             r.begin(), r.end(),
             static_cast<T>(0), std::plus<T>{},
-            [s = state()] (auto i) { return s.m[i] * l2norm(s.v[i]); }
+            [m=m.data(), v=v.data()] (auto i) { return m[i] * l2norm2(v[i]); }
         );
         T gravitational_energy = -static_cast<T>(0.5) * constant * std::transform_reduce(
             std::execution::par_unseq,
             r.begin(), r.end(),
             static_cast<T>(0), std::plus<T>{},
-            [s = state()] (auto i) {
+            [m=m.data(), x=x.data(), sz=size] (auto i) {
                 T total = 0;
-                T mi = s.m[i];
-                auto xi = s.x[i];
-                for (index_t j = 0; j < s.sz; j++) {
-                    if (j != i)total += mi * s.m[j] / dist2(xi, s.x[j]);
+                T mi = m[i];
+                auto xi = x[i];
+                for (index_t j = 0; j < sz; j++) {
+                    if (j != i) total += mi * m[j] / dist(xi, x[j]);
                 }
                 return total;
             }
         );
 
-        std::cout << std::format("Kinetic Enegy: {}\n", kinetic_engery)
-                  << std::format("Gravitational Potential Enegy: {}\n", gravitational_energy)
-                  << std::format("Total Energy: {}\n", kinetic_engery + gravitational_energy);
+        return { kinetic_energy, gravitational_energy };
     }
 
     void add_point(T mass, T distance, T total_mass) {

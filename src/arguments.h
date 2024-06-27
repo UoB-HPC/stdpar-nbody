@@ -26,7 +26,8 @@ struct Arguments {
     bool print_state = false;
     bool print_info = false;
     double theta = 0.5;
-    bool save_output = false;
+    bool save_pos = false;
+    bool save_energy = false;
 };
 
 auto parse_args(std::vector<std::string>&& args) {
@@ -59,8 +60,10 @@ auto parse_args(std::vector<std::string>&& args) {
             arguments.print_state = true;
         } else if (args[arg_index] == "--print-info") {
             arguments.print_info = true;
-        } else if (args[arg_index] == "--save") {
-            arguments.save_output = true;
+        } else if (args[arg_index] == "--save-pos") {
+            arguments.save_pos = true;
+        } else if (args[arg_index] == "--save-energy") {
+            arguments.save_energy = true;
         } else if (args[arg_index] == "--help" || args[arg_index] == "-h") {
             std::cout << ("Help:\n"
                           "-n size\t\tNumber of particles to simulate\n"
@@ -73,6 +76,8 @@ auto parse_args(std::vector<std::string>&& args) {
                           "--galaxy\t\tUse galaxy colliding model (default is plummer distribution)\n"
                           "--print-state\t\tPrint the initial and final state of the simulation\n"
                           "--print-info\t\tPrint info every timestep\n"
+                          "--save-pos\t\tSave positions every timestep to positions.bin\n"
+                          "--save-energy\t\tSave kinetic and gravitational energy every timestep to energy.bin\n"
                           "--help\t\tDisplay this help message and quit\n"
             );
             std::exit(0);

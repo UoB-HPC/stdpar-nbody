@@ -49,7 +49,7 @@ void run_barnes_hut(System<T>& system, Arguments arguments) {
     using Index_t = std::uint32_t;
 
     Saver<T> saver(arguments);
-    saver.save_points(system);
+    saver.save_all(system);
 
     // init tree structure
     auto tree = AtomicQuadTree<T, Index_t>::alloc(system.max_tree_node_size);
@@ -58,7 +58,7 @@ void run_barnes_hut(System<T>& system, Arguments arguments) {
     }
     for (size_t step = 0; step < arguments.steps; step++) {
         barnes_hut_step<T, Index_t>(system, arguments, tree, step == 0);
-        saver.save_points(system);
+        saver.save_all(system);
     }
 }
 
