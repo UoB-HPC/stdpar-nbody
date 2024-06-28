@@ -7,20 +7,20 @@
 
 #include "system.h"
 
-// Quad tree using Class of Vectors (CoV) (i.e. Structure of Arrays)
-template<typename T, typename Index_t>
+
+template<typename T, typename Index_t, dim_t N>
 class AtomicQuadTree {
 public:
     Index_t capacity;
     T root_side_length;
-    vec<T, 2> root_x;
+    vec<T, N> root_x;
     Index_t* first_child;
     Index_t* parent;
     // bump ptr used to keep track of allocated nodes
     atomic<Index_t>* bump_allocator;
 
     T* total_masses;
-    vec<T, 2>* centre_masses;
+    vec<T, N>* centre_masses;
 
     // used for mass calc
     atomic<Index_t>* child_mass_complete;  // stores number of children that have correct mass
@@ -33,15 +33,15 @@ public:
       // Root node:
       if (i == 0) return empty;
       // Sibling group
-      Index_t sg = (i - 1) / 4;
+      Index_t sg = (i - 1) / child_count<N>::v;
       // Child within sibling group
-      Index_t cp = (i - 1) % 4;
-      return cp == 3? parent[sg] : i + 1;
+      Index_t cp = (i - 1) % child_count<N>::v;
+      return cp == (child_count<N>::v - 1) ? parent[sg] : i + 1;
     }
 
     // Index of the "sibling group" of i:
     Index_t sg(Index_t i) {
-      return i == 0? 0 : (i - 1) / 4;
+      return i == 0 ? 0 : (i - 1) / child_count<N>::v;
     }
 
     void clear(Index_t i) {
@@ -49,7 +49,7 @@ public:
       first_child[i] = empty;
       parent[sg(i)] = empty;
       total_masses[i] = T(0);
-      centre_masses[i] = vec<T, 2>::splat(0);
+      centre_masses[i] = vec<T, N>::splat(0);
       child_mass_complete[i].store(0, memory_order_relaxed);
     }
 
@@ -61,7 +61,7 @@ public:
       qt.bump_allocator = new atomic<Index_t>(1);
 
       qt.total_masses = new T[size];
-      qt.centre_masses = new vec<T, 2>[size];
+      qt.centre_masses = new vec<T, N>[size];
 
       qt.child_mass_complete = new atomic<Index_t>[size];
       return qt;

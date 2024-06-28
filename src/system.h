@@ -7,7 +7,7 @@
 #include <vector>
 #include "vec.h"
 
-template<typename T>
+template<typename T, dim_t N>
 class System {
 public:
     using index_t = uint32_t;
@@ -16,15 +16,16 @@ public:
     T const dt;
     T const constant;
     std::vector<T> m;
-    std::vector<vec<T, 2>> x, v, a, ao;
+    std::vector<vec<T, N>> x, v, a, ao;
 
     // random generation
     std::mt19937 gen{42};  // fix random generation
     std::uniform_real_distribution<> angle_dis{0, 2 * std::numbers::pi};
     std::uniform_real_distribution<> unit_dis{0, 1};
+    std::uniform_real_distribution<> sym_dis{-1, 1};
 
-    System(index_t size, T time_step, T constant, index_t max_tree_node_size):
-        size(size), max_tree_node_size(max_tree_node_size),
+    System(index_t size, T time_step, T constant):
+        size(size), max_tree_node_size(std::max<std::size_t>(child_count<N>::v * size, 1000)),
 	dt(time_step), constant(constant), m(size),
         x(size), v(size), a(size), ao(size)
     {}
@@ -34,7 +35,7 @@ public:
     // Helper to make it easier to access all state from parallel algorithms
     struct state_t {
       T* m;
-      vec<T, 2>* x, *v, *a, *ao;
+      vec<T, N>* x, *v, *a, *ao;
       T dt, c;
       index_t sz;
     };
@@ -82,27 +83,13 @@ public:
         return { kinetic_energy, gravitational_energy };
     }
 
-    void add_point(T mass, T distance, T total_mass) {
-        auto const angle = angle_dis(gen);
-        auto const x = distance * std::sin(angle);
-        auto const y = distance * std::cos(angle);
-
-        // assume orbit around centre of system
-        auto const velocity = std::sqrt(constant * total_mass / (distance + std::numeric_limits<T>::epsilon()));
-        auto const norm = std::sqrt(x * x + y * y) + std::numeric_limits<T>::epsilon();
-        auto v_x = -y / norm * velocity;
-        auto v_y =  x / norm * velocity;
-
-        add_point(mass, x, y, v_x, v_y);
-    }
-
-    void add_point(T mass, T p_x, T p_y, T v_x, T v_y) {
+    void add_point(T mass, vec<T, N> pos, vec<T, N> vel) {
         auto i = next_point;
         next_point += 1;
 
         m[i] = mass;
-        x[i] = vec<T, 2>{{p_x, p_y}};
-        v[i] = vec<T, 2>{{v_x, v_y}};
+        x[i] = pos;
+        v[i] = vel;
     }
 
     void print() const {

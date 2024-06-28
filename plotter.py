@@ -13,7 +13,6 @@ def parse_args():
     parser_pos = subparsers.add_parser('pos', help='Animate positions')
     sim_group = parser_pos.add_mutually_exclusive_group(required=True)
     sim_group.add_argument('--galaxy', action='store_true', help="Select galaxy animation.")
-    sim_group.add_argument('--solar', action='store_true', help="Select solar animation.")
 
     file_group = parser_pos.add_mutually_exclusive_group(required=True)
     file_group.add_argument('--mp4', action='store_true', help="Save as mp4 file.")
@@ -56,14 +55,14 @@ def save_animation(ani, mp4=False):
 def read_points(file_name='positions.bin'):
     print(f'Reading {file_name}...')
     # read properties of file
-    file_info = np.memmap(file_name, np.uint32, 'r', shape=3)
+    file_info = np.memmap(file_name, np.uint32, 'r', shape=4)
 
     # extract properties
-    sim_size, steps, data_size = file_info
+    sim_size, steps, data_size, dim = file_info
     dtype = np.float32 if data_size == 4 else np.float64 if data_size == 8 else 1 / 0
 
     # load data
-    data = np.memmap(file_name, dtype, 'r', shape=(steps, sim_size, 2), offset=12)
+    data = np.memmap(file_name, dtype, 'r', shape=(steps, sim_size, dim), offset=4 * len(file_info))
     data = np.transpose(data, (0, 2, 1))
 
     print(f'Loaded {data.shape}')
@@ -91,13 +90,23 @@ def read_energy(file_name='energy.bin'):
 
 def animate_galaxy():
     data = read_points()
+    d3 = data.shape[1] == 3
 
     # set up background
-    fig, ax = plt.subplots(figsize=(6, 6))#, frameon=False)
-    fig.tight_layout()
-    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    ax.set_axis_off()
     size = 500
+    fig = plt.figure(figsize=(6, 6))
+    if d3:
+        size /= 3
+        ax = fig.add_subplot(projection='3d')
+        ax.set_zlim([-size, size])
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_zticklabels([])
+    else:
+        ax = fig.add_subplot()
+        ax.set_axis_off()
+        fig.tight_layout()
+    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
     ax.set_xlim([-size, size])
     ax.set_ylim([-size, size])
 
@@ -126,45 +135,6 @@ def animate_galaxy():
     return ani
 
 
-def animate_solar_system():
-    # keep a frame a day
-    data = read_points()[::24, ...]
-
-    data_x = data[:, 0, :]
-    data_y = data[:, 1, :]
-    data_norm = np.sqrt(data_x ** 2 + data_y ** 2)
-    multiplier = data_norm ** (1 / 15) / data_norm
-    data_x = multiplier * data_x
-    data_y = multiplier * data_y
-
-    # planet info
-    planets = ['sun', 'mecury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
-    colours = ['yellow', 'grey', 'orange', 'blue', 'red', 'orange', 'orange', 'blue', 'blue']
-    distances = list(range(len(planets)))
-    size = 10
-
-    # set up background
-    fig, ax = plt.subplots(figsize=(6, 6))
-    fig.tight_layout()
-    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    ax.set_axis_off()
-    ax.set_xlim([-size, size])
-    ax.set_ylim([-size, size])
-
-    # create each frame
-    artists = []
-    for xs, ys in zip(data_x, data_y):
-        artist = ax.scatter(xs, ys, marker='o', color=colours)
-        artists.append([artist])
-
-    print(f'There are {len(artists)} frames')
-
-    # build animation
-    ani = animation.ArtistAnimation(fig=fig, artists=artists, interval=20, blit=True)#, repeat_delay=1000)
-
-    return ani
-
-
 def plot_energy():
     energy_values = read_energy()
 
@@ -185,11 +155,12 @@ def main(args):
         if args.galaxy:
             ani = animate_galaxy()
         else:
-            ani = animate_solar_system()
-
+            raise ValueError('Unknown option')
         save_animation(ani, mp4=args.mp4)
-    else:
+    elif args.command == 'energy':
         plot_energy()
+    else:
+        print('No plot selected')
 
 
 if __name__ == '__main__':

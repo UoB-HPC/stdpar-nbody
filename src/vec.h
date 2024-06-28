@@ -2,12 +2,25 @@
 #define VEC_H
 // Eventually we'd replace this functionality with `std::simd`.
 #include <cmath>
+#include <cstdint>
 #include <array>
 #include <initializer_list>
 
+using dim_t = std::uint32_t;
+template<dim_t N>
+struct child_count {
+    static constexpr dim_t v = 2 * child_count<N - 1>::v;
+};
+
+template<>
+struct child_count<1> {
+    static constexpr int v = 2;
+};
+
 template <typename T, int N>
 struct vec {
-  alignas(alignof(T) * N) T data[N];
+  // alignas(alignof(T) * N)
+  T data[N];
 
   constexpr T& operator[](int i) { return data[i]; }
   constexpr T operator[](int i) const { return data[i]; }

@@ -6,7 +6,7 @@
 #include "arguments.h"
 #include "system.h"
 
-template<typename T>
+template<typename T, dim_t N>
 class Saver {
 public:
     explicit Saver(Arguments arguments)
@@ -16,7 +16,7 @@ public:
         if (is_save_energy) setup_energy_file();
     }
 
-    auto save_all(System<T> const & system) -> void {
+    auto save_all(System<T, N> const & system) -> void {
         save_points(system);
         save_energy(system);
     }
@@ -45,6 +45,9 @@ private:
         pos_out_file.write(reinterpret_cast<const char*>(&timestep_count), sizeof(timestep_count));
         // size (in bytes) of data type used to store positions
         pos_out_file.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
+        // dimension
+        std::uint32_t dim = N;
+        pos_out_file.write(reinterpret_cast<const char*>(&dim), sizeof(dim));
     }
 
     auto setup_energy_file() -> void {
@@ -57,15 +60,15 @@ private:
         energy_out_file.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
     }
 
-    auto save_points(System<T> const & system) -> void {
+    auto save_points(System<T, N> const & system) -> void {
         if (!is_save_pos) return;
 
         pos_out_file.write(reinterpret_cast<const char*>(system.x.data()),
-                           simulation_size * data_size * std::uint32_t(2));
+                           simulation_size * data_size * std::uint32_t(N));
 
     }
 
-    auto save_energy(System<T> const & system) -> void {
+    auto save_energy(System<T, N> const & system) -> void {
         if (!is_save_energy) return;
 
         auto [kinetic, grav] = system.calc_energies();

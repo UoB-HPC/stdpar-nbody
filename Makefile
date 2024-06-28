@@ -1,7 +1,9 @@
 SHELL := /bin/bash
 EXPECTED_ENV=stdpar-bh
 
-OUTFILE=./nbody
+D ?= 2
+DIM_SIZE=$D
+OUTFILE=./nbody_d${DIM_SIZE}
 MAIN=./src/main.cpp
 
 CONDA_FILES=-I${CONDA_PREFIX}/include -L${CONDA_PREFIX}/lib
@@ -10,13 +12,14 @@ STDEXEC=./stdexec/include
 
 VERSION=-std=c++20
 
+
 # nvidia flags
-FLAGS=${VERSION} -fast
+FLAGS=${VERSION} -fast -DDIM_SIZE=${DIM_SIZE}
 GPU_DEBUG=-gpu=lineinfo -gpu=keep
 GPU_FLAGS=-stdpar=gpu
 
 # other flags
-CXX_FLAGS=${VERSION} -march=native -Ofast -ltbb -lpthread
+CXX_FLAGS=${VERSION} -march=native -Ofast -ltbb -lpthread -DDIM_SIZE=${DIM_SIZE}
 PEDANTIC=-Wall -Wextra -pedantic
 
 # GET_TBB=source ~/intel/oneapi/setvars.sh
@@ -38,7 +41,7 @@ gpu: check-env
 	nvc++ ${FLAGS} ${GPU_FLAGS} ${CONDA_FILES} ${MAIN} -o ${OUTFILE}_gpu
 
 debug: check-env
-	g++ ${VERSION} -g -O0 -ltbb ${MAIN} -o ${OUTFILE}_${@}
+	g++ ${VERSION} -DDIM_SIZE=${DIM_SIZE} -g -O0 -ltbb ${MAIN} -o ${OUTFILE}_${@}
 
 cpu: gcc clang nvcpp
 
