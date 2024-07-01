@@ -47,6 +47,8 @@ auto run_precision(Arguments arguments) -> void {
                 return build_uniform_model<T, N>(arguments);
             case SimulationType::Galaxy:
                 return build_galaxy_model<T, N>(arguments);
+            case SimulationType::Load:
+                return Saver<T, N>::load_system(arguments.load_input.value());
             default:
                 throw std::runtime_error("Unknown simulation type");
         }
