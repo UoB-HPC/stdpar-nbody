@@ -9,9 +9,9 @@
 #include "saving.h"
 #include "counting_iterator.h"
 
-template<typename T>
-void run_all_pairs_step(System<T>& system, Arguments arguments) {
-    Saver<T> saver(arguments);
+template<typename T, dim_t N>
+void run_all_pairs_step(System<T, N>& system, Arguments arguments) {
+    Saver<T, N> saver(arguments);
     saver.save_all(system);
 
     // all pairs algorithm time step
@@ -22,9 +22,9 @@ void run_all_pairs_step(System<T>& system, Arguments arguments) {
             std::execution::par_unseq,
             r.begin(), r.end(),
             [s = system.state()] (auto i) {
-                auto ai = vec<T, 2>::splat(0);
+                auto ai = vec<T, N>::splat(0);
                 auto pi = s.x[i];
-                for (typename System<T>::index_t j = 0; j < s.sz; j++) {
+                for (typename System<T, N>::index_t j = 0; j < s.sz; j++) {
                     auto pj = s.x[j];
                     ai += s.m[j] * (pj - pi) / dist3(pi, pj);
                 }
@@ -40,9 +40,9 @@ void run_all_pairs_step(System<T>& system, Arguments arguments) {
 }
 
 
-template<typename T>
-void run_all_pairs_collapsed_step(System<T>& system, Arguments arguments) {
-    Saver<T> saver(arguments);
+template<typename T, dim_t N>
+void run_all_pairs_collapsed_step(System<T, N>& system, Arguments arguments) {
+    Saver<T, N> saver(arguments);
     saver.save_all(system);
 
     // all pairs algorithm time step
