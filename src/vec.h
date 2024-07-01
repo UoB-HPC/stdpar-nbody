@@ -16,8 +16,10 @@ inline constexpr dim_t child_count<1> = 2;
 
 template <typename T, int N>
 struct vec {
-  // alignas(alignof(T) * N)
-  T data[N];
+  // ignore alignment for odd dimensions
+  alignas(
+    N % 2 == 0 ? alignof(T) * N : alignof(T)
+  ) T data[N];
 
   constexpr T& operator[](int i) { return data[i]; }
   constexpr T operator[](int i) const { return data[i]; }
