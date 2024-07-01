@@ -73,7 +73,7 @@ auto parse_args(std::vector<std::string>&& args) {
                           "--all-pairs\t\tUse all pairs simulation algorithm (default is barnes-hut)\n"
                           "--all-pairs-collapsed\t\tUse collapsed all pairs simulation algorithm (default is barnes-hut)\n"
                           "--plummer\t\tUse plummer model (D=3 only, default is uniform)\n"
-                          "--galaxy\t\tUse galaxy colliding model (D=2 only, default is uniform)\n"
+                          "--galaxy\t\tUse galaxy colliding model (D= 2 and 3 only, default is uniform)\n"
                           "--print-state\t\tPrint the initial and final state of the simulation\n"
                           "--print-info\t\tPrint info every timestep\n"
                           "--save-pos\t\tSave positions every timestep to positions.bin\n"
