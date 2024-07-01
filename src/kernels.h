@@ -20,9 +20,9 @@ void atomic_calc_mass(AtomicQuadTree<T, Index_t, N> tree, Index_t tree_index) {
         // so count those:
         uint32_t local_leaf_count = 0;
         auto leaf_child_index = tree.first_child[tree_index];
-        for (int i = 0; i < child_count<N>::v; ++i)
+        for (int i = 0; i < child_count<N>; ++i)
           local_leaf_count += static_cast<uint32_t>(tree.first_child[leaf_child_index + i] == tree.empty);
-        uint32_t expected_count = child_count<N>::v - 1 - local_leaf_count;
+        uint32_t expected_count = child_count<N> - 1 - local_leaf_count;
 
         // Arrive at parent releasing previous masses accumulated, and acquiring masses accumulated by other threads:
         if (tree.child_mass_complete[tree_index].fetch_add(1, memory_order_acq_rel) != expected_count)
@@ -31,7 +31,7 @@ void atomic_calc_mass(AtomicQuadTree<T, Index_t, N> tree, Index_t tree_index) {
         // pick up all child masses
         T mass = 0;
         auto centre_masses = vec<T, N>::splat(0);
-        for (auto i = 0; i < child_count<N>::v; i++) {
+        for (auto i = 0; i < child_count<N>; i++) {
             auto child_index = tree.first_child[tree_index] + i;
             auto child_total_mass = tree.total_masses[child_index];
             mass += child_total_mass;
@@ -79,7 +79,7 @@ void atomic_insert(T mass, vec<T, N> pos, AtomicQuadTree<T, Index_t, N> tree) {
             // compare_exchange_weak is fine because if it fails spuriously, we'll retry again
 
             // create children
-            Index_t first_child_index = tree.bump_allocator->fetch_add(child_count<N>::v, memory_order_relaxed);
+            Index_t first_child_index = tree.bump_allocator->fetch_add(child_count<N>, memory_order_relaxed);
             tree.parent[tree.sg(first_child_index)] = tree_index;
 
             // evict body at current index and insert into children keeping node locked

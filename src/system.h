@@ -25,7 +25,7 @@ public:
     std::uniform_real_distribution<> sym_dis{-1, 1};
 
     System(index_t size, T time_step, T constant):
-        size(size), max_tree_node_size(std::max<std::size_t>(child_count<N>::v * size, 1000)),
+        size(size), max_tree_node_size(std::max<std::size_t>(child_count<N> * size, 1000)),
 	dt(time_step), constant(constant), m(size),
         x(size), v(size), a(size), ao(size)
     {}

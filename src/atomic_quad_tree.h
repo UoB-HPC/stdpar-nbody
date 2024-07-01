@@ -33,15 +33,15 @@ public:
       // Root node:
       if (i == 0) return empty;
       // Sibling group
-      Index_t sg = (i - 1) / child_count<N>::v;
+      Index_t sg = (i - 1) / child_count<N>;
       // Child within sibling group
-      Index_t cp = (i - 1) % child_count<N>::v;
-      return cp == (child_count<N>::v - 1) ? parent[sg] : i + 1;
+      Index_t cp = (i - 1) % child_count<N>;
+      return cp == (child_count<N> - 1) ? parent[sg] : i + 1;
     }
 
     // Index of the "sibling group" of i:
     Index_t sg(Index_t i) {
-      return i == 0 ? 0 : (i - 1) / child_count<N>::v;
+      return i == 0 ? 0 : (i - 1) / child_count<N>;
     }
 
     void clear(Index_t i) {

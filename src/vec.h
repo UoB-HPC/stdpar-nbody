@@ -7,15 +7,12 @@
 #include <initializer_list>
 
 using dim_t = std::uint32_t;
+
 template<dim_t N>
-struct child_count {
-    static constexpr dim_t v = 2 * child_count<N - 1>::v;
-};
+inline constexpr dim_t child_count = 2 * child_count<N - 1>;
 
 template<>
-struct child_count<1> {
-    static constexpr int v = 2;
-};
+inline constexpr dim_t child_count<1> = 2;
 
 template <typename T, int N>
 struct vec {
