@@ -58,8 +58,6 @@ inline auto parse_args(std::vector<std::string>&& args) {
 	      cerr << "Options are: double, float (default)." << endl;
 	      exit(EXIT_FAILURE);
 	    }
-        } else if (args[arg_index] == "--double") {
-            arguments.single_precision = false;
 	} else if (args[arg_index] == "--algorithm") {
             arg_index += 1;
 	    if (args[arg_index] == "all-pairs") {
