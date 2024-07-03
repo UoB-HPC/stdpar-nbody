@@ -13,8 +13,8 @@
 
 using clock_timer = std::chrono::steady_clock;
 
-template<typename T, typename Index_t>
-void barnes_hut_step(System<T>& system, Arguments arguments, AtomicQuadTree<T, Index_t> tree, bool first) {
+template<typename T, typename Index_t, dim_t N>
+void barnes_hut_step(System<T, N>& system, Arguments arguments, AtomicQuadTree<T, Index_t, N> tree, bool first) {
     auto start_timer = clock_timer::now();
 
     clear_tree(system, tree, first? tree.capacity : tree.bump_allocator->load(memory_order_relaxed));
@@ -44,21 +44,21 @@ void barnes_hut_step(System<T>& system, Arguments arguments, AtomicQuadTree<T, I
     }
 }
 
-template<typename T>
-void run_barnes_hut(System<T>& system, Arguments arguments) {
+template<typename T, dim_t N>
+void run_barnes_hut(System<T, N>& system, Arguments arguments) {
     using Index_t = std::uint32_t;
 
-    Saver<T> saver(arguments);
-    saver.save_points(system);
+    Saver<T, N> saver(arguments);
+    saver.save_all(system);
 
     // init tree structure
-    auto tree = AtomicQuadTree<T, Index_t>::alloc(system.max_tree_node_size);
+    auto tree = AtomicQuadTree<T, Index_t, N>::alloc(system.max_tree_node_size);
     if (arguments.print_info) {
         std::cout << "Tree init complete\n";
     }
     for (size_t step = 0; step < arguments.steps; step++) {
-        barnes_hut_step<T, Index_t>(system, arguments, tree, step == 0);
-        saver.save_points(system);
+        barnes_hut_step<T, Index_t, N>(system, arguments, tree, step == 0);
+        saver.save_all(system);
     }
 }
 

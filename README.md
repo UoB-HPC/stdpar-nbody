@@ -32,6 +32,8 @@ This must be done within the mamba environment:
 ```bash
 $ mamba activate stdpar-bh
 ```
+The number of dimensions can be specified with `D=<dim>` parameter to `make`.
+By default `D=2` is used.
 These are the available targets:
 
 **CPU**
@@ -43,18 +45,18 @@ These are the available targets:
 **GPU**
 - `make gpu` to build for NVIDIA GPUs using `nvc++`
 
-The output will be `./nbody_<target>`.
+The output will be `./nbody_d<dim>_<target>`.
 <!-- makelocalrc -gcc $(which gcc) -gpp $(which g++) -x -d . -->
 
 ## Run configuration
 When running the `nvcpp` version, it is recommended to use the following environment variables:
 ```bash
-OMP_PLACES=cores OMP_PROC_BIND=close ./nbody_nvcpp -s 5 -n 1000000
+OMP_PLACES=cores OMP_PROC_BIND=close ./nbody_d2_nvcpp -s 5 -n 1000000
 ```
 
 If you get an error about missing libraries then try running with the following environment variable:
 ```bash
-LD_LIBRARY_PATH=${CONDA_PREFIX}/lib ./nbody_clang -s 5 -n 1000000
+LD_LIBRARY_PATH=${CONDA_PREFIX}/lib ./nbody_d2_clang -s 5 -n 1000000
 ```
 
 ## Examples
@@ -62,22 +64,22 @@ Run Barnes-Hut with $\theta=0$ and compare with all pairs algorithm.
 Run 5 steps with 10 bodies.
 They should have the same output.
 ```bash
-$ ./nbody_gpu -s 5 -n 10 --print-state --theta 0
-$ ./nbody_gpu -s 5 -n 10 --print-state --all-pairs
+$ ./nbody_d2_gpu -s 5 -n 10 --print-state --theta 0
+$ ./nbody_d2_gpu -s 5 -n 10 --print-state --all-pairs
 ```
 
 Run a large Barnes-Hut simulation with 1,000,000 bodies:
 ```bash
-$ ./nbody_gpu -s 5 -n 1000000
+$ ./nbody_d2_gpu -s 5 -n 1000000
 ```
 
-Generate the above GIF:
+Generate a similar image to the above GIF:
 ```bash
-$ ./nbody_gpu -s 1000 -n 10000 --save --galaxy
-$ python3 plotter.py --galaxy --gif
+$ ./nbody_d2_gpu -s 1000 -n 10000 --save-pos --galaxy
+$ python3 plotter.py pos --galaxy --gif
 ```
 
 To find other program arguments:
 ```bash
-$ ./nbody_gpu --help
+$ ./nbody_d2_gpu --help
 ```

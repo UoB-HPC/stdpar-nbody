@@ -9,11 +9,11 @@ using clock_timer = std::chrono::steady_clock;
 #include "barnes_hut.h"
 #include "models.h"
 
-template<typename T>
-using sim_func_t = std::function<void(System<T>&, Arguments)>;
+template<typename T, dim_t N>
+using sim_func_t = std::function<void(System<T, N>&, Arguments)>;
 
-template<typename T>
-void run_simulation(Arguments arguments, System<T>& system, sim_func_t<T> sim_algo) {
+template<typename T, dim_t N>
+void run_simulation(Arguments arguments, System<T, N>& system, sim_func_t<T, N> sim_algo) {
     if (arguments.print_state) {
         std::cout << "Starting state:" << std::endl;
         system.print();
@@ -33,27 +33,27 @@ void run_simulation(Arguments arguments, System<T>& system, sim_func_t<T> sim_al
         std::chrono::duration<double, std::milli>(end - start).count());
 }
 
-template<typename T>
+template<typename T, dim_t N>
 auto run_precision(Arguments arguments) -> void {
     auto system = [arguments] {
         switch (arguments.simulation_type) {
             case SimulationType::Plummer:
-                return build_plummer_model<T>(arguments);
-            case SimulationType::Solar:
-                return build_solar_system<T>();
+                return build_plummer_model<T, N>(arguments);
+            case SimulationType::Uniform:
+                return build_uniform_model<T, N>(arguments);
             case SimulationType::Galaxy:
-                return build_galaxy_model<T>(arguments);
+                return build_galaxy_model<T, N>(arguments);
             default:
                 throw std::runtime_error("Unknown simulation type");
         }
     }();
     switch(arguments.simulation_algo) {
     case SimulationAlgo::BarnesHut:
-      return run_simulation<T>(arguments, system, run_barnes_hut<T>);
+      return run_simulation<T, N>(arguments, system, run_barnes_hut<T, N>);
     case SimulationAlgo::AllPairs:
-      return run_simulation<T>(arguments, system, run_all_pairs_step<T>);
+      return run_simulation<T, N>(arguments, system, run_all_pairs_step<T, N>);
     case SimulationAlgo::AllPairsCollapsed:
-      return run_simulation<T>(arguments, system, run_all_pairs_collapsed_step<T>);
+      return run_simulation<T, N>(arguments, system, run_all_pairs_collapsed_step<T, N>);
     }
 }
 
@@ -62,9 +62,9 @@ auto main(int argc, char* argv[]) -> int {
     auto arguments = parse_args(std::vector<std::string>(argv + 1, argv + argc));
 
     if (arguments.single_precision) {
-        run_precision<float>(arguments);
+        run_precision<float, DIM_SIZE>(arguments);
     } else {
-        run_precision<double>(arguments);
+        run_precision<double, DIM_SIZE>(arguments);
     }
 
     return EXIT_SUCCESS;
