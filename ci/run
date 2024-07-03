@@ -1,0 +1,76 @@
+#!/usr/bin/env sh
+# Compiles and runs the n-body proxy application.
+#
+# ./run <toolchain> <algorithm> <workload case> <dim> <precision>
+#
+# Examples:
+# ./run nvgpu galaxy barnes-hut
+# ./run nvgpu solar all-pairs 2 double
+# BUILD=1 ./run nvgpu galaxy barnes-hut
+# RUN=1 ./run nvgpu galaxy barnes-hut
+set -ex
+
+STEPS=1000
+BODIES=100000
+
+DIM=3
+if [ ! -z $4 ]; then
+    DIM=$4
+fi
+
+PREC=float
+if [ ! -z $5 ]; then
+    PREC=$5
+fi
+
+BUILD=1
+RUN=1
+if [ $RUN_ONLY = "1" ]; then
+    BUILD=0
+fi
+if [ $BUILD_ONLY = "1" ]; then
+    RUN=0
+fi
+
+# Build the binary
+if [ $BUILD = "1" ]; then
+# Build options for all compilers (portable standard compilation options):
+CXXFLAGS="-Ofast -DNDEBUG -std=c++23 -mcpu=native -Wall -Wextra -Iinclude -DDIM_SIZE=${DIM}"
+case $1 in
+    nvgpu)
+	FLAGS="${CXXFLAGS} -stdpar=gpu -gpu=ccnative"
+	nvc++ ${FLAGS} -o nbody_${1} src/main.cpp
+	;;
+    nvcpu)
+	FLAGS="${CXXFLAGS} -stdpar=multicore"
+	nvc++ ${FLAGS} -o nbody_${1} src/main.cpp
+	;;
+    gcc)
+	FLAGS="${CXXFLAGS}"
+	g++ ${FLAGS} -o nbody_${1} src/main.cpp -ltbb
+	;;
+    clang)
+	FLAGS="${CXXFLAGS}"
+	clang++ ${FLAGS} -o nbody_${1} src/main.cpp -ltbb
+	;;
+    acpp)
+	acpp ${FLAGS} --acpp-stdpar -o nbody_${1} src/main.cpp -ltbb
+	;;
+    *)
+	echo "error: unknown compiler toolchain ${1}"
+	echo "options are: nvgpu, nvcpu, gcc, clang, acpp"
+	exit 1
+	;;
+esac
+fi
+
+# Run the binary:
+if [ $RUN = "1" ]; then
+OMP_PLACES=cores OMP_PROC_BIND=close \
+    ./nbody_${1} -s $STEPS -n $BODIES --save all --print-info \
+    --algorithm ${2} \
+    --workload ${3} \
+    --precision ${PREC}
+python3 plotter.py --${3} --gif
+mv nbody_animation.gif nbody_${2}_${3}_${PREC}.gif
+fi

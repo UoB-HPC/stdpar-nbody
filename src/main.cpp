@@ -2,6 +2,10 @@
 #include <chrono>
 #include <iostream>
 
+#ifndef DIM_SIZE
+#error Must specify spatial dimensions by compiling with -DDIM_SIZE=2 or -DDIM_SIZE=3 .
+#endif
+
 using clock_timer = std::chrono::steady_clock;
 
 #include "arguments.h"

@@ -1,0 +1,38 @@
+#!/usr/bin/env sh
+# Builds and runs commands in the docker container:
+#
+# Obtain an interactive session:
+# ./ci/run_docker it
+#
+# Build and run the benchmarks
+# ./ci/run_docker ...options (see ./ci/run)...
+set -ex
+
+IMG=barneshut:latest
+
+# Build container
+hpccm --recipe=ci/recipe.py | docker build -t $IMG -
+
+DOCKER_CMDS="\
+       -it \
+       --gpus=all \
+       --privileged \
+       -u $(id -u):$(id -g) \
+       -v $(pwd):/src \
+       -e RUN_ONLY:"${RUN_ONLY}" \
+       -e BUILD_ONLY:"${BUILD_ONLY}" \
+       -w /src \
+       $IMG \
+"
+
+case $1 in
+    it)
+        # Run container interactively
+        docker run $DOCKER_CMDS
+        ;;
+    *)
+        # Run container
+        docker run $DOCKER_CMDS \
+            bash -c "set -ex && RUN_ONLY=$RUN_ONLY BUILD_ONLY=$BUILD_ONLY ./ci/run $1 $2 $3 $4"
+        ;;
+esac
