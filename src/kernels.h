@@ -78,7 +78,7 @@ void atomic_insert(T mass, vec<T, 2> pos, AtomicQuadTree<T, Index_t> tree) {
                     child_pos = 3;
                 }
             }
-            tree_index = tree.first_child[tree_index] + child_pos;
+            tree_index = status + child_pos; // status is the first child of tree_index
             side_length /= static_cast<T>(2);
         } else if (status == tree.empty && fc.compare_exchange_weak(status, tree.locked, memory_order_acquire)) {
             // compare_exchange_weak is fine because if it fails spuriously, we'll retry again
