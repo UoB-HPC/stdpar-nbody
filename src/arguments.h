@@ -31,21 +31,22 @@ struct Arguments {
 };
 
 inline auto parse_args(std::vector<std::string>&& args) {
+    using namespace std;
     auto arguments = Arguments{};
     size_t arg_index = 0;
 
     for (; arg_index < args.size(); arg_index++) {
         if (args[arg_index] == "-n") {
             arg_index += 1;
-            auto size = std::stoi(args[arg_index]);
+            auto size = stoi(args[arg_index]);
             arguments.size = size;
         } else if (args[arg_index] == "-s") {
             arg_index += 1;
-            auto steps = std::stoi(args[arg_index]);
+            auto steps = stoi(args[arg_index]);
             arguments.steps = steps;
         } else if (args[arg_index] == "--theta") {
             arg_index += 1;
-            arguments.theta = std::stod(args[arg_index]);
+            arguments.theta = stod(args[arg_index]);
 	} else if (args[arg_index] == "--precision") {
             arg_index += 1;
 	    if (args[arg_index] == "float") {
@@ -53,9 +54,9 @@ inline auto parse_args(std::vector<std::string>&& args) {
 	    } else if (args[arg_index] == "double") {
 	      arguments.single_precision = false;
 	    } else {
-	      std::cerr << "Unknown precision: \"" << args[arg_index] << "\"." << std::endl;
-	      std::cerr << "Options are: double, float (default)." << std::endl;
-	      std::exit(EXIT_FAILURE);
+	      cerr << "Unknown precision: \"" << args[arg_index] << "\"." << endl;
+	      cerr << "Options are: double, float (default)." << endl;
+	      exit(EXIT_FAILURE);
 	    }
         } else if (args[arg_index] == "--double") {
             arguments.single_precision = false;
@@ -68,9 +69,9 @@ inline auto parse_args(std::vector<std::string>&& args) {
 	    } else if (args[arg_index] == "barnes-hut") {
 	      arguments.simulation_algo = SimulationAlgo::BarnesHut;
 	    } else {
-	      std::cerr << "Unknown algorithm: \"" << args[arg_index] << "\"." << std::endl;
-	      std::cerr << "Options are: all-pairs, all-pairs-collapsed, barnes-hut (default)." << std::endl;
-	      std::exit(EXIT_FAILURE);
+	      cerr << "Unknown algorithm: \"" << args[arg_index] << "\"." << endl;
+	      cerr << "Options are: all-pairs, all-pairs-collapsed, barnes-hut (default)." << endl;
+	      exit(EXIT_FAILURE);
 	    }
 	} else if (args[arg_index] == "--workload") {
             arg_index += 1;
@@ -81,9 +82,9 @@ inline auto parse_args(std::vector<std::string>&& args) {
 	    } else if (args[arg_index] == "uniform") {
 	      arguments.simulation_type = SimulationType::Uniform;
 	    } else {
-	      std::cerr << "Unknown workload: \"" << args[arg_index] << "\"." << std::endl;
-	      std::cerr << "Options are: plummer, galaxy, uniform (default)." << std::endl;
-	      std::exit(EXIT_FAILURE);
+	      cerr << "Unknown workload: \"" << args[arg_index] << "\"." << endl;
+	      cerr << "Options are: plummer, galaxy, uniform (default)." << endl;
+	      exit(EXIT_FAILURE);
 	    }
         } else if (args[arg_index] == "--print-state") {
             arguments.print_state = true;
@@ -102,12 +103,12 @@ inline auto parse_args(std::vector<std::string>&& args) {
 	    arguments.save_pos = false;
 	    arguments.save_energy = false;
 	  } else {
-	    std::cerr << "Unknown save options: \"" << args[arg_index] << "\"." << std::endl;
-	    std::cerr << "Options are: pos, energy, all, none (default)." << std::endl;
-	    std::exit(EXIT_FAILURE);
+	    cerr << "Unknown save options: \"" << args[arg_index] << "\"." << endl;
+	    cerr << "Options are: pos, energy, all, none (default)." << endl;
+	    exit(EXIT_FAILURE);
 	  }
         } else if (args[arg_index] == "--help" || args[arg_index] == "-h") {
-            std::cout << ("Help:\n"
+            cout << ("Help:\n"
                           "-n size\t\tNumber of particles to simulate\n"
                           "-s steps\t\tNumber of steps to run simulation for\n"
                           "--theta t\t\tTheta threshold parameter to use in Barnes-Hut\n"
@@ -119,10 +120,10 @@ inline auto parse_args(std::vector<std::string>&& args) {
                           "--save pos|energy|all|none(default) \t\tSelects what data to save every timestep\n"
                           "--help\t\tDisplay this help message and quit\n"
             );
-            std::exit(EXIT_SUCCESS);
+            exit(EXIT_SUCCESS);
         } else {
-            std::cout << std::format("Unknown argument: '{}'\n", args[arg_index]);
-            std::exit(1);
+            cout << format("Unknown argument: '{}'\n", args[arg_index]);
+            exit(1);
         }
     }
 
