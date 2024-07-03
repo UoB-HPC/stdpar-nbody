@@ -2,6 +2,7 @@
 #define ARGUMENTS_H
 
 #include <iostream>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -9,6 +10,7 @@ enum class SimulationType {
     Uniform,
     Plummer,
     Galaxy,
+    Load,
 };
 
 enum class SimulationAlgo {
@@ -28,6 +30,7 @@ struct Arguments {
     double theta = 0.5;
     bool save_pos = false;
     bool save_energy = false;
+    std::optional<std::string> load_input = {};
 };
 
 inline auto parse_args(std::vector<std::string>&& args) {
@@ -79,6 +82,10 @@ inline auto parse_args(std::vector<std::string>&& args) {
 	      arguments.simulation_type = SimulationType::Galaxy;
 	    } else if (args[arg_index] == "uniform") {
 	      arguments.simulation_type = SimulationType::Uniform;
+            } else if (args[arg_index] == "load") {
+              arg_index += 1;
+              arguments.load_input = { args[arg_index] };
+              arguments.simulation_type = SimulationType::Load;
 	    } else {
 	      cerr << "Unknown workload: \"" << args[arg_index] << "\"." << endl;
 	      cerr << "Options are: plummer, galaxy, uniform (default)." << endl;
@@ -112,7 +119,7 @@ inline auto parse_args(std::vector<std::string>&& args) {
                           "--theta t\t\tTheta threshold parameter to use in Barnes-Hut\n"
                           "--precision double|float(default)\t\tSelects floating-point precision\n"
                           "--algorithm all-pairs|all-pairs-collapsed|barnes-hut(default)<algo>\t\tSelects simulation algorithm\n"
-                          "--workload plummer|galaxy|uniform(default)\t\tSelects workload\n"
+                          "--workload plummer|galaxy|uniform(default)|load <file.bin>\t\tSelects workload\n"
                           "--print-state\t\tPrint the initial and final state of the simulation\n"
                           "--print-info\t\tPrint info every timestep\n"
                           "--save pos|energy|all|none(default) \t\tSelects what data to save every timestep\n"
