@@ -1,6 +1,4 @@
-#ifndef HPC_SENDERS_KERNELS_H
-#define HPC_SENDERS_KERNELS_H
-
+#pragma once
 #include "atomic_quad_tree.h"
 
 // raw kernels
@@ -207,5 +205,3 @@ auto clear_tree(System<T, N>& system, AtomicQuadTree<T, Index_t, N> tree, Index_
         r.begin(), last_node,
         [tree] (auto tree_index) mutable { tree.clear(tree_index); });
 }
-
-#endif //HPC_SENDERS_KERNELS_H

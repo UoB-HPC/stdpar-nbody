@@ -1,6 +1,4 @@
-#ifndef SAVING_H
-#define SAVING_H
-
+#pragma once
 #include <fstream>
 
 #include "arguments.h"
@@ -121,5 +119,3 @@ private:
         energy_out_file.write(reinterpret_cast<const char*>(&grav), sizeof(grav));
     }
 };
-
-#endif //SAVING_H

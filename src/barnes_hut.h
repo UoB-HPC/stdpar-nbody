@@ -1,6 +1,4 @@
-#ifndef BARNES_HUT_H
-#define BARNES_HUT_H
-
+#pragma once
 #include <algorithm>
 #include <execution>
 #include <ranges>
@@ -61,5 +59,3 @@ void run_barnes_hut(System<T, N>& system, Arguments arguments) {
         saver.save_all(system);
     }
 }
-
-#endif //BARNES_HUT_H

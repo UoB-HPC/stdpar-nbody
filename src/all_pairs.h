@@ -1,5 +1,4 @@
-#ifndef ALL_PAIRS_H
-#define ALL_PAIRS_H
+#pragma once
 
 #include <execution>
 #include <ranges>
@@ -75,5 +74,3 @@ void run_all_pairs_collapsed_step(System<T, N>& system, Arguments arguments) {
 	saver.save_all(system);
     }
 }
-
-#endif //ALL_PAIRS_H

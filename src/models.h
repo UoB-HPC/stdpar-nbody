@@ -1,6 +1,4 @@
-#ifndef MODELS_H
-#define MODELS_H
-
+#pragma once
 #include <format>
 #include <stdexcept>
 #include "arguments.h"
@@ -163,5 +161,3 @@ template<typename T, dim_t N>
 auto build_galaxy_model(Arguments arguments) -> System<T, N> {
     throw std::runtime_error(std::format("Cannot build Galaxy model for D={}", N));
 }
-
-#endif //MODELS_H

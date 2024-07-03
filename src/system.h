@@ -1,6 +1,4 @@
-#ifndef SYSTEM_H
-#define SYSTEM_H
-
+#pragma once
 #include <cmath>
 #include <functional>
 #include <random>
@@ -104,5 +102,3 @@ public:
 private:
     std::size_t next_point = 0;
 };
-
-#endif //SYSTEM_H

@@ -1,5 +1,4 @@
-#ifndef QUAD_TREE_H
-#define QUAD_TREE_H
+#pragma once
 #include <vector>
 
 #include "system.h"
@@ -131,5 +130,3 @@ auto compute_bounded_quad_tree(System<T>& system) {
     tree.add_node(max_size - min_size, divide, divide, is_leaf<Index_t>);
     return tree;
 }
-
-#endif //QUAD_TREE_H

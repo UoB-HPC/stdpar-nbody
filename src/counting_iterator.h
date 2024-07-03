@@ -1,6 +1,4 @@
-#ifndef COUNTING_ITERATOR_H
-#define COUNTING_ITERATOR_H
-
+#pragma once
 #include <ranges>
 
 // Workaround for two nvc++ bugs:
@@ -19,5 +17,3 @@ constexpr auto counting_iterator(T v = T(0)) {
       return std::views::iota(T(v)).begin();
   #endif
 }
-
-#endif // COUNTING_ITERATOR_H

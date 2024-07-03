@@ -1,12 +1,10 @@
-#ifndef ATOMIC_QUAD_TREE_H
-#define ATOMIC_QUAD_TREE_H
+#pragma once
 
 #include "atomic.h"
 #include <cassert>
 #include <vector>
 
 #include "system.h"
-
 
 template<typename T, typename Index_t, dim_t N>
 class AtomicQuadTree {
@@ -76,5 +74,3 @@ public:
       delete qt->bump_allocator;
     }
 };
-
-#endif //ATOMIC_QUAD_TREE_H
