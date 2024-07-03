@@ -18,7 +18,7 @@ enum class SimulationAlgo {
 };
 
 struct Arguments {
-    std::size_t size = 1'00'0;
+    std::size_t size = 1'000;
     std::size_t steps = 1;
     bool single_precision = true;
     SimulationType simulation_type = SimulationType::Uniform;
