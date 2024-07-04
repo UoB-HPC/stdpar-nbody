@@ -31,30 +31,27 @@ fi
 if [ $BUILD_ONLY = "1" ]; then
     RUN=0
 fi
+BIN="nbody_${1}_${DIM}"
 
 # Build the binary
 if [ $BUILD = "1" ]; then
   # Build options for all compilers (portable standard compilation options):
-  CXXFLAGS="-Ofast -DNDEBUG -std=c++23 -mcpu=native -Wall -Wextra -Iinclude -DDIM_SIZE=${DIM}"
+  CXXFLAGS="-Ofast -DNDEBUG -std=c++23 -mcpu=native -Wall -Wextra -Iinclude -DDIM_SIZE=${DIM} -o ${BIN}"
   case $1 in
     nvgpu)
-	FLAGS="${CXXFLAGS} -stdpar=gpu -gpu=ccnative"
-	nvc++ ${FLAGS} -o nbody_${1} src/main.cpp
+	nvc++ ${CXXFLAGS} -stdpar=gpu -gpu=ccnative src/main.cpp
 	;;
     nvcpu)
-	FLAGS="${CXXFLAGS} -stdpar=multicore"
-	nvc++ ${FLAGS} -o nbody_${1} src/main.cpp
+	nvc++ ${CXXFLAGS} -stdpar=multicore src/main.cpp
 	;;
     gcc)
-	FLAGS="${CXXFLAGS}"
-	g++ ${FLAGS} -o nbody_${1} src/main.cpp -ltbb
+	g++ ${CXXFLAGS} src/main.cpp -ltbb
 	;;
     clang)
-	FLAGS="${CXXFLAGS}"
-	clang++ ${FLAGS} -o nbody_${1} src/main.cpp -ltbb
+	clang++ ${CXXFLAGS} src/main.cpp -ltbb
 	;;
     acpp)
-	acpp ${FLAGS} --acpp-stdpar -o nbody_${1} src/main.cpp -ltbb
+	acpp ${CXXFLAGS} --acpp-stdpar src/main.cpp -ltbb
 	;;
     *)
 	echo "error: unknown compiler toolchain ${1}"
@@ -67,7 +64,7 @@ fi
 # Run the binary:
 if [ $RUN = "1" ]; then
   OMP_PLACES=cores OMP_PROC_BIND=close \
-    ./nbody_${1} -s $STEPS -n $BODIES --save pos \
+    ./${BIN} -s $STEPS -n $BODIES --save pos \
     --algorithm ${2} \
     --workload ${3} \
     --precision ${PREC}
