@@ -21,9 +21,9 @@ Then you can run the samples using:
 
 ```shell
 # Options
-# ./ci/run <toolchain> <algorithm> <workload case> <dim> <precision>
+# ./ci/run_docker <toolchain> <algorithm> <workload case> <dim> <precision>
 # Example: nvc++ gpu compiler, barnes-hut algorithm, galaxy simulation, 3D, double precision:
-$ ./ci/run nvgpu barnes-hut galaxy 3 double
+$ ./ci/run_docker nvgpu barnes-hut galaxy 3 double
 # If you only want to build the binary, you can use:
 $ BUILD_ONLY=1 ./ci/run nvgpu barnes-hut galaxy 3 double
 # If you only want to run the binary after building it, you can use:
@@ -36,6 +36,12 @@ Following options available:
 - Algorithm: `all-pairs`, `all-pairs-collapsed`, `barnes-hut`.
 - Dimensions: `2` (2D), `3` (3D).
 - Precision: `float`, `double`.
+
+When contributing code, you can format your contributions as follows:
+
+```shell
+$ ./ci/run_docker fmt
+```
 
 ## Running with mamba
 
