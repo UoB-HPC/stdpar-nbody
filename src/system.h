@@ -4,6 +4,7 @@
 #include <random>
 #include <vector>
 #include "vec.h"
+#include "alloc.h"
 
 template<typename T, dim_t N>
 class System {
@@ -13,8 +14,8 @@ public:
     index_t const max_tree_node_size;
     T const dt;
     T const constant;
-    std::vector<T> m;
-    std::vector<vec<T, N>> x, v, a, ao;
+    std::vector<T, allocator<T>> m;
+    std::vector<vec<T, N>, allocator<vec<T, N>>> x, v, a, ao;
 
     // random generation
     std::mt19937 gen{42};  // fix random generation

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "atomic.h"
 #include <cassert>
 #include <vector>
-
+#include "alloc.h"
+#include "atomic.h"
 #include "system.h"
 
 template<typename T, dim_t N, typename Index = std::uint32_t>
@@ -36,25 +36,27 @@ public:
     static atomic_tree alloc(size_t capacity) {
       atomic_tree qt;
       qt.capacity = capacity;
-      qt.first_child = new Index[capacity];
-      qt.parent = new Index[1 + capacity/4];
-      qt.next_free_child_group = new atomic<Index>(1);
+      ::alloc(qt.first_child, capacity);
+      ::alloc(qt.parent, 1 + capacity/child_count<N>);
+      ::alloc(qt.next_free_child_group, 1);
 
-      qt.total_masses = new T[capacity];
-      qt.centre_masses = new vec<T, N>[capacity];
+      ::alloc(qt.total_masses, capacity);
+      ::alloc(qt.centre_masses, capacity);
 
-      qt.child_mass_complete = new atomic<Index>[capacity];
+      ::alloc(qt.child_mass_complete, capacity);
       return qt;
     }
 
     // Deallocates the tree
     static void dealloc(atomic_tree* qt) {
-      delete[] qt->first_child;
-      delete[] qt->parent;
-      delete[] qt->total_masses;
-      delete[] qt->centre_masses;
-      delete[] qt->child_mass_complete;
-      delete qt->next_free_child_group;
+      dealloc(qt->first_child, qt->capacity);
+      dealloc(qt->parent, 1 + qt->capacity/child_count<N>);
+      dealloc(qt->next_free_child_group, 1);
+
+      dealloc(qt->total_masses, qt->capacity);
+      dealloc(qt->centre_masses, qt->capacity);
+
+      dealloc(qt->child_mass_complete, qt->capacity);
     }
 
     // Computes which node to traverse next after `i` in a bottom to top (child to root) tree traversal:
