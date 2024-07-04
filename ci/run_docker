@@ -27,11 +27,15 @@ DOCKER_CMDS="\
 
 case $1 in
     it)
-        # Run container interactively
+        # Run container interactively:
         docker run $DOCKER_CMDS
         ;;
+    fmt)
+        # Format the code using the container's clang-format:
+        docker run $DOCKER_CMDS bash -c "set -ex && ./ci/fmt"
+        ;;
     *)
-        # Run container
+        # Run container:
         docker run $DOCKER_CMDS \
             bash -c "set -ex && RUN_ONLY=$RUN_ONLY BUILD_ONLY=$BUILD_ONLY ./ci/run $1 $2 $3 $4 $5 $6"
         ;;

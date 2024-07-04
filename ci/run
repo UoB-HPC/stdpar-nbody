@@ -32,6 +32,10 @@ if [ $BUILD_ONLY = "1" ]; then
     RUN=0
 fi
 BIN="nbody_${1}_${DIM}"
+if [ ! -f ${BIN} ]; then
+    # Build binary if it does not exist
+    BUILD=1
+fi
 
 # Build the binary
 if [ $BUILD = "1" ]; then

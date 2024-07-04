@@ -1,28 +1,26 @@
 #pragma once
 // Eventually we'd replace this functionality with `std::simd`.
+#include <array>
 #include <cmath>
 #include <cstdint>
-#include <array>
 #include <initializer_list>
 
 using dim_t = std::uint32_t;
 
-template<dim_t N>
+template <dim_t N>
 inline constexpr dim_t child_count = 2 * child_count<N - 1>;
 
-template<>
+template <>
 inline constexpr dim_t child_count<1> = 2;
 
 template <typename T, int N>
 struct vec {
   // ignore alignment for odd dimensions
-  alignas(
-    N % 2 == 0 ? alignof(T) * N : alignof(T)
-  ) T data[N];
+  alignas(N % 2 == 0 ? alignof(T) * N : alignof(T)) T data[N];
 
   constexpr T& operator[](int i) { return data[i]; }
   constexpr T operator[](int i) const { return data[i]; }
-  
+
   static constexpr vec<T, N> splat(T v) {
     vec<T, N> o;
     for (int i = 0; i < N; ++i) o[i] = v;
@@ -108,11 +106,8 @@ constexpr vec<T, N> operator/(vec<T, N> a, T s) {
 
 template <typename T>
 T gmin(T a, T b) {
-  if constexpr(std::is_floating_point_v<std::decay_t<T>>) {
-    return std::fmin(a, b);
-  } else {
-    return std::min(a, b);
-  }
+  if constexpr (std::is_floating_point_v<std::decay_t<T>>) return std::fmin(a, b);
+  else return std::min(a, b);
 }
 
 template <typename T, int N>
@@ -124,11 +119,8 @@ constexpr T min(vec<T, N> v) {
 
 template <typename T>
 T gmax(T a, T b) {
-  if constexpr(std::is_floating_point_v<std::decay_t<T>>) {
-    return std::fmax(a, b);
-  } else {
-    return std::max(a, b);
-  }
+  if constexpr (std::is_floating_point_v<std::decay_t<T>>) return std::fmax(a, b);
+  else return std::max(a, b);
 }
 
 template <typename T, int N>
@@ -137,7 +129,6 @@ constexpr T max(vec<T, N> v) {
   for (int i = 1; i < N; ++i) r = gmax(r, v[i]);
   return r;
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Vector math ops:
@@ -166,7 +157,9 @@ constexpr T l2norm2(vec<T, N> v) {
 
 // L2-Norm
 template <typename T, int N>
-constexpr T l2norm(vec<T, N> v) { return std::sqrt(l2norm2(v)); }
+constexpr T l2norm(vec<T, N> v) {
+  return std::sqrt(l2norm2(v));
+}
 
 // Distance^2
 template <typename T, int N>
@@ -181,8 +174,12 @@ constexpr T dist2(vec<T, N> a, vec<T, N> b) {
 
 // Distance
 template <typename T, int N>
-constexpr T dist(vec<T, N> a, vec<T, N> b) { return std::sqrt(dist2(a, b)) + std::numeric_limits<T>::epsilon(); }  
+constexpr T dist(vec<T, N> a, vec<T, N> b) {
+  return std::sqrt(dist2(a, b)) + std::numeric_limits<T>::epsilon();
+}
 
 // Distance^3
 template <typename T, int N>
-constexpr T dist3(vec<T, N> a, vec<T, N> b) { return std::pow(dist2(a, b), T(3.)/T(2.)) + std::numeric_limits<T>::epsilon(); }  
+constexpr T dist3(vec<T, N> a, vec<T, N> b) {
+  return std::pow(dist2(a, b), T(3.) / T(2.)) + std::numeric_limits<T>::epsilon();
+}
