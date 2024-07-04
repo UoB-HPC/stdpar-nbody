@@ -1,5 +1,4 @@
-#ifndef ATOMIC_H
-#define ATOMIC_H
+#pragma once
 
 #if defined(_NVHPC_STDPAR_GPU)
 #include <cuda/atomic>
@@ -18,5 +17,3 @@ inline constexpr auto memory_order_acquire = std::memory_order_acquire;
 inline constexpr auto memory_order_release = std::memory_order_release;
 inline constexpr auto memory_order_acq_rel = std::memory_order_acq_rel;
 #endif // _NVHPC_STDPAR_GPU
-
-#endif // ATOMIC_H

@@ -1,5 +1,4 @@
-#ifndef VEC_H
-#define VEC_H
+#pragma once
 // Eventually we'd replace this functionality with `std::simd`.
 #include <cmath>
 #include <cstdint>
@@ -187,5 +186,3 @@ constexpr T dist(vec<T, N> a, vec<T, N> b) { return std::sqrt(dist2(a, b)) + std
 // Distance^3
 template <typename T, int N>
 constexpr T dist3(vec<T, N> a, vec<T, N> b) { return std::pow(dist2(a, b), T(3.)/T(2.)) + std::numeric_limits<T>::epsilon(); }  
-
-#endif
