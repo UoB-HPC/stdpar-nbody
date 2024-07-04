@@ -1,0 +1,41 @@
+---
+BasedOnStyle: Google
+AlignConsecutiveAssignments:
+  Enabled: true
+AlignOperands: true
+AllowAllArgumentsOnNextLine: "true"
+AllowShortBlocksOnASingleLine: Always
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: true
+BreakBeforeBinaryOperators: true
+ColumnLimit: 120
+CommentPragmas: " NOLINT*"
+CompactNamespaces: "true"
+ConstructorInitializerIndentWidth: 1
+ContinuationIndentWidth: 1
+ForEachMacros:
+  - RANGES_FOR
+  - BOOST_FOREACH
+  - BOOST_FOREACH
+IndentPPDirectives: BeforeHash
+IndentWrappedFunctionNames: true
+PenaltyBreakBeforeFirstCallParameter: 10
+PointerAlignment: Right
+QualifierAlignment: Right
+RemoveBracesLLVM: true
+RemoveParentheses: MultipleParentheses
+RemoveSemicolon: true
+SortIncludes: CaseInsensitive
+SortUsingDeclarations: "true"
+SpaceAfterLogicalNot: "false"
+SpaceAroundPointerQualifiers: Both
+SpacesInAngles: false
+Standard: Latest
+TabWidth: 2
+AllowAllConstructorInitializersOnNextLine: "true"
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+SpaceInEmptyParentheses: false
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
