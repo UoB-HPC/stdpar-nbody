@@ -4,6 +4,8 @@
 
 #ifndef DIM_SIZE
 #error Must specify spatial dimensions by compiling with -DDIM_SIZE=2 or -DDIM_SIZE=3 .
+#else
+static_assert(DIM_SIZE == 2 || DIM_SIZE == 3, "DIM_SIZE is not 2 or 3");
 #endif
 
 using clock_timer = std::chrono::steady_clock;
