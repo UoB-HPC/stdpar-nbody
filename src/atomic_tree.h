@@ -30,7 +30,7 @@ public:
     // Sentinel values used in "first_child" array to indicate whether:
     static constexpr Index empty = std::numeric_limits<Index>::max(); //< Empty tree leaf node
     static constexpr Index body = empty - 1;  //< Tree leaf node contains body
-    static constexpr Index locked = body - 1; //< Tree leaf node is concurrently being split by another thread ("locked")
+    static constexpr Index locked = body - 1; //< Tree leaf node is being split by another thread ("locked")
 
     // Allocates tree with capacity to hold `capacity` nodes:
     static atomic_tree alloc(size_t capacity) {
