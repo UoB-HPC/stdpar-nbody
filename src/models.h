@@ -68,7 +68,7 @@ auto build_plummer_model(Arguments arguments) -> System<T, N> {
 }
 
 template<typename T, dim_t N>
-auto build_plummer_model(Arguments arguments) -> System<T, N> {
+auto build_plummer_model(Arguments) -> System<T, N> {
     throw std::runtime_error(std::format("Cannot build Plummer model for D={}", N));
 }
 
@@ -158,6 +158,6 @@ auto build_galaxy_model(Arguments arguments) -> System<T, N> {
 }
 
 template<typename T, dim_t N>
-auto build_galaxy_model(Arguments arguments) -> System<T, N> {
+auto build_galaxy_model(Arguments) -> System<T, N> {
     throw std::runtime_error(std::format("Cannot build Galaxy model for D={}", N));
 }
