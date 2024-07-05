@@ -13,6 +13,7 @@ def parse_args():
     parser_pos = subparsers.add_parser('pos', help='Animate positions')
     sim_group = parser_pos.add_mutually_exclusive_group(required=True)
     sim_group.add_argument('--galaxy', action='store_true', help="Select galaxy animation.")
+    sim_group.add_argument('--general', action='store_true', help="Try animate position file.")
 
     file_group = parser_pos.add_mutually_exclusive_group(required=True)
     file_group.add_argument('--mp4', action='store_true', help="Save as mp4 file.")
@@ -135,6 +136,49 @@ def animate_galaxy():
     return ani
 
 
+def animate_general():
+    data = read_points()
+    d3 = data.shape[1] == 3
+    if data.shape[1] not in [2, 3]:
+        raise ValueError("Can only support 2 or 3 dimensions in general plot")
+
+    # find boundary values in all directions
+    boundary_max = data.max(axis=0).max(axis=1)
+    boundary_min = data.min(axis=0).min(axis=1)
+
+    # set up background
+    fig = plt.figure(figsize=(6, 6))
+    if d3:
+        ax = fig.add_subplot(projection='3d')
+        ax.set_zlim([boundary_min[2], boundary_max[2]])
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_zticklabels([])
+    else:
+        ax = fig.add_subplot()
+        ax.set_axis_off()
+        fig.tight_layout()
+    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    ax.set_xlim([boundary_min[0], boundary_max[0]])
+    ax.set_ylim([boundary_min[1], boundary_max[1]])
+
+    # create each frame
+    artists = []
+    for step in data:
+        artist1 = ax.scatter(*step, marker='o', animated=True, s=1, color='blue')
+
+        artists.append([artist1])
+
+    print(f'There are {len(artists)} frames')
+
+    # build animation
+    ani = animation.ArtistAnimation(fig=fig, artists=artists, interval=100, blit=True, repeat_delay=1000)
+    print('Animation created!')
+
+    return ani
+
+
+
 def plot_energy():
     energy_values = read_energy()
 
@@ -154,6 +198,8 @@ def main(args):
     if args.command == 'pos':
         if args.galaxy:
             ani = animate_galaxy()
+        elif args.general:
+            ani = animate_general()
         else:
             raise ValueError('Unknown option')
         save_animation(ani, mp4=args.mp4)

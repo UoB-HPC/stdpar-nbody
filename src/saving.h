@@ -16,7 +16,7 @@ class Saver {
     if (is_save_energy) setup_energy_file();
   }
 
-  auto save_all(System<T, N> const & system) -> void {
+  auto save_all(System<T, N> const &system) -> void {
     save_points(system);
     save_energy(system);
   }
@@ -28,14 +28,14 @@ class Saver {
 
     // read in state parameters
     int_t system_size;
-    in_file.read(reinterpret_cast<char*>(&system_size), sizeof(system_size));
+    in_file.read(reinterpret_cast<char *>(&system_size), sizeof(system_size));
     int_t system_dim;
-    in_file.read(reinterpret_cast<char*>(&system_dim), sizeof(system_dim));
+    in_file.read(reinterpret_cast<char *>(&system_dim), sizeof(system_dim));
 
     float_t time_step;
-    in_file.read(reinterpret_cast<char*>(&time_step), sizeof(time_step));
+    in_file.read(reinterpret_cast<char *>(&time_step), sizeof(time_step));
     float_t constant;
-    in_file.read(reinterpret_cast<char*>(&constant), sizeof(constant));
+    in_file.read(reinterpret_cast<char *>(&constant), sizeof(constant));
 
     if (system_dim != N) {
       throw std::runtime_error(
@@ -46,7 +46,7 @@ class Saver {
     auto planet_size = 1 + 2 * system_dim;
     auto data_size   = system_size * planet_size;
     auto data        = std::vector<float_t>(data_size);
-    in_file.read(reinterpret_cast<char*>(data.data()), data_size * sizeof(float_t));
+    in_file.read(reinterpret_cast<char *>(data.data()), data_size * sizeof(float_t));
 
     // create system
     auto system = System<T, N>(system_size, time_step, constant);
@@ -106,13 +106,13 @@ class Saver {
     energy_out_file.write(reinterpret_cast<char const *>(&data_size), sizeof(data_size));
   }
 
-  auto save_points(System<T, N> const & system) -> void {
+  auto save_points(System<T, N> const &system) -> void {
     if (!is_save_pos) return;
 
     pos_out_file.write(reinterpret_cast<char const *>(system.x.data()), simulation_size * data_size * std::uint32_t(N));
   }
 
-  auto save_energy(System<T, N> const & system) -> void {
+  auto save_energy(System<T, N> const &system) -> void {
     if (!is_save_energy) return;
 
     auto [kinetic, grav] = system.calc_energies();

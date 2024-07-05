@@ -39,12 +39,17 @@ void run_simulation(Arguments arguments, System<T, N>& system, sim_func_t<T, N> 
 
 template <typename T, dim_t N>
 auto run_precision(Arguments arguments) -> void {
-  auto system = [arguments] {
+  // arguments maybe modified by these functions
+  auto system = [&arguments] {
     switch (arguments.simulation_type) {
       case SimulationType::Plummer: return build_plummer_model<T, N>(arguments);
       case SimulationType::Uniform: return build_uniform_model<T, N>(arguments);
       case SimulationType::Galaxy: return build_galaxy_model<T, N>(arguments);
-      case SimulationType::Load: return Saver<T, N>::load_system(arguments.load_input.value());
+      case SimulationType::Load: {
+        auto system    = Saver<T, N>::load_system(arguments.load_input.value());
+        arguments.size = system.size;
+        return system;
+      }
       default: throw std::runtime_error("Unknown simulation type");
     }
   }();

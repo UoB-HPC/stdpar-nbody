@@ -72,6 +72,6 @@ if [ $RUN = "1" ]; then
     --algorithm ${2} \
     --workload ${3} \
     --precision ${PREC}
-  python3 plotter.py pos --${3} --gif
+  python3 scripts/plotter.py pos --${3} --gif
   mv nbody_animation.gif nbody_${2}_${3}_${PREC}.gif
 fi

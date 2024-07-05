@@ -43,10 +43,17 @@ python3 scripts/thuering_nbody/conv_csv.py sim_asteroids.csv sim_asteroids.bin
 ```
 The simulation can then be run (with `D=3`):
 ```bash
-./nbody_d3_gcc -s 25 --workload load scripts/sim_big.bin --print-info --theta 0.6 --precision double
+./nbody_d3_gcc -s 25 --workload load sim_asteroids.bin --print-info --theta 0.6 --precision double
 ```
 This tries to match the above `N_Body_Simulation` as closely as possible:
-- In `conv_csv.py` the `.bin` file is saved with `3600` seconds per timestep
+- In `conv_csv.py` the `.bin` file is saved with a modified gravitational constant and time step to match the use of AU and days
 - `-s 25` runs for 1 day (including a warm-up timestep)
 - `--theta 0.6` the given threshold
 - `--precision double` the `N_Body_Simulation` program only uses double precision
+
+After running both programs and saving output, you should have a `positions.bin` and `lastState.csv`.
+You can compare the difference between these two:
+```bash
+python3 scripts/thuering_nbody/check_state.py positions.bin lastState.csv
+```
+Fun fact: this script can also compare runs between two different `positions.bin` or `lastState.csv`!
