@@ -1,8 +1,12 @@
 import argparse
 import csv
+import random
 import struct
 
 import numpy as np
+
+random.seed(42)
+float = np.float32
 
 def calc_constant():
     G_SI = 6.67428 * np.power(10.0, -11)
@@ -20,6 +24,9 @@ def calc_constant():
 def read_and_save(args):
     input_csv_path, output_binary_path = args.input_csv, args.output_bin
     skip_count = 0
+    move_count = 0
+
+    existing_pos = set()
     with open(input_csv_path, 'r') as csv_file:
         csv_reader = csv.reader(csv_file)
 
@@ -29,16 +36,22 @@ def read_and_save(args):
         rows = []
         for row in csv_reader:
             mass = float(row[3])
-            pos_x = float(row[4])
-            pos_y = float(row[5])
-            pos_z = float(row[6])
-            vel_x = float(row[7])
-            vel_y = float(row[8])
-            vel_z = float(row[9])
-            out_row = np.array((mass, pos_x, pos_y, pos_z, vel_x, vel_y, vel_z))
+            pos = (float(row[4]), float(row[5]), float(row[6]))
+            vel = (float(row[7]), float(row[8]), float(row[9]))
+
+            # adjust bodies that are too close
+            while pos in existing_pos:
+                new_x = np.nextafter(pos[0], float(np.inf))
+                pos = (new_x, *pos[1:])
+                move_count += 1
+            existing_pos.add(pos)
+
+            out_row = np.array((mass, *pos, *vel))
             if not np.any(np.isnan(out_row)):
                 rows.append(out_row)
             else:
+                # use a massless random body
+                rows.append((0, float(random.random()), 0, 0, 0, 0, 0))
                 skip_count += 1
 
         size = len(rows)
@@ -67,7 +80,8 @@ def read_and_save(args):
             binary_file.write(struct.pack('f', row[6]))
     print(f'Saved {row_count} bodies')
     print(f'Total mass saved: {total_mass:.60g}')
-    print(f'Skipped {skip_count} bodies')
+    print(f'Replaced {skip_count} NaN bodies')
+    print(f'Adjusted {move_count} bodies')
 
 
 def main():
