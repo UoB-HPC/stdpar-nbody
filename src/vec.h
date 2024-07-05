@@ -44,6 +44,13 @@ void write(vec<T, 2> v, T& x, T& y) {
 // Arithmetic ops:
 
 template <typename T, int N>
+constexpr bool operator==(vec<T, N> const & a, vec<T, N> const & b) {
+  bool is_equal = true;
+  for (int i = 0; i < N; ++i) is_equal = is_equal && (a[i] == b[i]);
+  return is_equal;
+}
+
+template <typename T, int N>
 constexpr vec<T, N>& operator+=(vec<T, N>& a, vec<T, N> b) {
   for (int i = 0; i < N; ++i) a[i] += b[i];
   return a;

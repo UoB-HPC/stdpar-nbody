@@ -111,7 +111,7 @@ $ ./nbody_d2_gpu -s 5 -n 1000000
 Generate a similar image to the above GIF:
 ```bash
 $ ./nbody_d2_gpu -s 1000 -n 10000 --save pos --workload galaxy
-$ python3 plotter.py pos --galaxy --gif
+$ python3 scripts/plotter.py pos --galaxy --gif
 ```
 
 To find other program arguments:
