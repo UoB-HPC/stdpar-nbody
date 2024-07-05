@@ -153,19 +153,12 @@ struct atomic_tree {
         // We'll then continue traversing to try insert our current body.
         // compare_exchange_weak suffices: if it fails spuriously, we'll retry again
 
-        // get current body at this node and check if it is close to the insertion body
-        auto p_x = centre_masses[tree_index];
-        if (pos == p_x) {
-          total_masses[tree_index] += mass;
-          fc.store(body, memory_order_release);
-          break;
-        }
-
         // create children
         Index first_child_index       = next_free_child_group->fetch_add(child_count<N>, memory_order_relaxed);
         parent[sg(first_child_index)] = tree_index;
 
         // evict body at current index and insert into children keeping node locked
+        auto p_x        = centre_masses[tree_index];
         Index child_pos = 0;
         Index level     = 1;
         for (dim_t i = 0; i < N; i++) {
