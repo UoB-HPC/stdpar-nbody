@@ -14,18 +14,18 @@ struct atomic_tree {
   T root_side_length;
   vec<T, N> root_x;
   // Tree connectivity:
-  Index* first_child;  //< First child of a node (all siblings are stored contiguously)
-  Index* parent;       //< Parent of a sibling group (nodes that share the same parent)
+  mutable Index* first_child;  //< First child of a node (all siblings are stored contiguously)
+  mutable Index* parent;       //< Parent of a sibling group (nodes that share the same parent)
   // Atomic offset to next free child_group (bump allocator):
-  atomic<Index>* next_free_child_group;
+  mutable atomic<Index>* next_free_child_group;
 
   // Node data:
-  T* total_masses;
-  vec<T, N>* centre_masses;
+  mutable T* total_masses;
+  mutable vec<T, N>* centre_masses;
 
   // Helper latch per node for the last thread to proceed to the parent during
   // the tree computation of tree node centroids and masses:
-  atomic<Index>* child_mass_complete;
+  mutable atomic<Index>* child_mass_complete;
 
   // Sentinel values used in "first_child" array to indicate whether:
   static constexpr Index empty  = std::numeric_limits<Index>::max();  //< Empty leaf node
@@ -71,10 +71,10 @@ struct atomic_tree {
   }
 
   // Index of "sibling group" (nodes sharing same parent) of `i`:
-  Index sg(Index i) { return i == 0 ? 0 : (i - 1) / child_count<N>; }
+  static constexpr Index sg(Index i) { return i == 0 ? 0 : (i - 1) / child_count<N>; }
 
   // Resets tree node `i`
-  void clear(Index i) {
+  void clear(Index i) const {
     if (i == 0) next_free_child_group->store(1, memory_order_relaxed);
     first_child[i]   = empty;
     parent[sg(i)]    = empty;
@@ -87,7 +87,7 @@ struct atomic_tree {
   void clear(System<T, N>& system, Index last_node) {
     auto r = system.body_indices();
     std::for_each_n(std::execution::par_unseq, r.begin(), last_node,
-                    [tree = *this](auto tree_index) mutable { tree.clear(tree_index); });
+                    [tree = *this](auto tree_index) { tree.clear(tree_index); });
   }
 
   // Compute bounds of the root node of the tree
@@ -114,7 +114,7 @@ struct atomic_tree {
   }
 
   // Inserts body with `mass` at position `pos`:
-  void insert(T mass, vec<T, N> pos) {
+  void insert(T mass, vec<T, N> pos) const {
     Index tree_index = 0;  // insert into root
     vec<T, N> divide = root_x;
     T side_length    = root_side_length;
@@ -181,11 +181,11 @@ struct atomic_tree {
   void insert(System<T, N>& system) {
     auto r = system.body_indices();
     std::for_each(std::execution::par, r.begin(), r.end(),
-                  [s = system.state(), tree = *this](Index i) mutable { tree.insert(s.m[i], s.x[i]); });
+                  [s = system.state(), tree = *this](Index i) { tree.insert(s.m[i], s.x[i]); });
   }
 
   // Computes tree node centroids and masses that depend on the body at the leaf node `i`:
-  void compute_tree(Index tree_index) {
+  void compute_tree(Index tree_index) const {
     // If this node is not a leaf node with a body, we are done:
     if (first_child[tree_index] != body) return;
 
@@ -225,7 +225,7 @@ struct atomic_tree {
   // Compute tree nodes centroids and masses for all bodies in system:
   void compute_tree(System<T, N>& system) {
     auto r = system.body_indices();
-    std::for_each_n(std::execution::par, r.begin(), capacity, [tree = *this](auto i) mutable { tree.compute_tree(i); });
+    std::for_each_n(std::execution::par, r.begin(), capacity, [tree = *this](auto i) { tree.compute_tree(i); });
   }
 
   // Compute force at position `x` using cut-off parameter `theta`:
