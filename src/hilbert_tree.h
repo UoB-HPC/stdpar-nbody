@@ -79,53 +79,55 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
 
 template <typename T, dim_t N>
 struct bvh {
-  uint32_t deep_level;
+  using node_t = uint32_t;
+  using level_t = uint32_t;
+  level_t last_level; //< Last level in the tree, i.e., leaf-level - 1 (leaf level is just bodies).
   aabb<T, N>* b;  //< Axis-Aligned Bounding-Boxes
   T* m;           //< Monopole Masses
   vec<T, N>* x;   //< Monopole Centers of Mass
 
   // The number of nodes at each level is "2^l" because each tree level is fully refined:
-  static constexpr uint32_t nnodes_at_level(uint32_t l) { return ipow2(l); }
+  static constexpr level_t nnodes_at_level(level_t l) { return ipow2(l); }
 
   // The total number of nodes is "sum over l in [0, nlevels) of 2^l" which is just "2^(nlevels+1)-1"
-  static constexpr uint32_t nnodes_until_level(uint32_t l) { return ipow2(l) - 1; }
+  static constexpr level_t nnodes_until_level(level_t l) { return ipow2(l) - 1; }
 
   // The parent of node `n` which is at level `l`:
-  static constexpr uint64_t parent(uint64_t n, uint32_t l) {
-    if (l == 0) return uint64_t(0);
+  static constexpr node_t parent(node_t n, level_t l) {
+    if (l == 0) return node_t(0);
     auto b = nnodes_until_level(l);
     auto o = n - b;
-    return uint64_t(nnodes_until_level(l - 1) + (o / 2));
+    return node_t(nnodes_until_level(l - 1) + (o / 2));
   }
 
   // The left child of node `n` which is at level `l`:
-  static constexpr uint64_t left_child(uint64_t n, uint32_t l) {
+  static constexpr node_t left_child(node_t n, level_t l) {
     auto first = nnodes_until_level(l);
     auto count = nnodes_at_level(l);
     return (n - first) * 2 + first + count;
   }
 
   // Range of nodes at level `l`:
-  static constexpr auto nodes(uint32_t l) {
-    uint64_t first = nnodes_until_level(l);
-    uint64_t count = nnodes_at_level(l);
-    uint64_t last  = first + count;
+  static constexpr auto nodes(level_t l) {
+    node_t first = nnodes_until_level(l);
+    node_t count = nnodes_at_level(l);
+    node_t last  = first + count;
     return std::views::iota((uint32_t)first, (uint32_t)last);
   }
 
   // Allocate the bvh:
   static bvh alloc(System<T, N> const & system) {
     // #leafs is the smallest power of two larger than #bodies:
-    uint64_t nleafs = std::bit_ceil(system.size);
+    node_t nleafs = std::bit_ceil(system.size);
 
     // #levels is the number of trailing zeros of #leafs plus one.
     // We already have the leaf level built (its just the bodies),
     // so we do not include it here:
-    uint32_t nlevels = std::countr_zero(nleafs);
+    level_t nlevels = std::countr_zero(nleafs);
 
-    uint64_t nnodes = nnodes_until_level(nlevels);
+    node_t nnodes = nnodes_until_level(nlevels);
     return bvh<T, N>{
-     .deep_level = nlevels - 1, .b = new aabb<T, N>[nnodes], .m = new T[nnodes], .x = new vec<T, N>[nnodes]};
+     .last_level = nlevels - 1, .b = new aabb<T, N>[nnodes], .m = new T[nnodes], .x = new vec<T, N>[nnodes]};
   }
 
   // Deallocate the bvh:
@@ -137,12 +139,12 @@ struct bvh {
 
   // Build the bvh:
   void build_tree(System<T, N>& system) {
-    uint64_t nbodies = system.size;
+    node_t nbodies = system.size;
     // We build the deepest BVH level from the bodies:
     {
-      auto ids   = nodes(deep_level);
+      auto ids   = nodes(last_level);
       auto first = ids[0];
-      std::for_each(std::execution::par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](uint64_t i) {
+      std::for_each(std::execution::par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](node_t i) {
         auto li = i - first;
         auto bl = (li * 2);
         auto br = bl + 1;
@@ -165,11 +167,11 @@ struct bvh {
     }
 
     // We then recursively build the remainin levels:
-    for (int32_t l = deep_level - 1; l >= 0; --l) {
+    for (int32_t l = last_level - 1; l >= 0; --l) {
       auto ids   = nodes(l);
       auto first = ids[0];
       auto count = std::ranges::size(ids);
-      std::for_each(std::execution::par_unseq, ids.begin(), ids.end(), [=, *this](uint64_t i) {
+      std::for_each(std::execution::par_unseq, ids.begin(), ids.end(), [=, *this](node_t i) {
         auto li = i - first;
         auto bl = (li * 2) + first + count;
         auto br = bl + 1;
@@ -198,25 +200,25 @@ struct bvh {
 
   // Compute the force for each body
   void compute_force(System<T, N>& system, T theta) {
-    uint64_t nbodies         = system.size;
-    constexpr uint64_t empty = std::numeric_limits<uint64_t>::max();
+    node_t nbodies         = system.size;
+    constexpr node_t empty = std::numeric_limits<node_t>::max();
     auto ids                 = system.body_indices();
-    std::for_each(std::execution::par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](uint64_t i) {
+    std::for_each(std::execution::par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](node_t i) {
       auto xs = s.x[i];
 
-      uint64_t tree_index = 0;
+      node_t tree_index = 0;
       auto a              = vec<T, N>::splat(0);
-      uint32_t level      = 0;
+      level_t level      = 0;
 
       // stackless tree traversal
       bool came_forwards = true;
       while (tree_index != empty) {
-        auto next_node = [&](uint64_t i) {
+        auto next_node = [&](node_t i) {
           if (i == 0) return empty;  // Back at the root? Done!
           // If left child, go to right child; otherwise go to parent.
-          return uint64_t((i - 1) % 2 ? parent(i, level) : i + 1);
+          return node_t((i - 1) % 2 ? parent(i, level) : i + 1);
         };
-        uint64_t next_node_index = next_node(tree_index);
+        node_t next_node_index = next_node(tree_index);
         if (came_forwards) {  // child or sibling node
           vec<T, N> xj = x[tree_index];
           T mj         = m[tree_index];
@@ -225,10 +227,10 @@ struct bvh {
           } else if ((dist(xs, xj) / b[tree_index].lengths() < theta).all()) {
             // below threshold
             a += mj * (xj - xs) / dist3(xs, xj);
-          } else if (level == deep_level) {
+          } else if (level == last_level) {
             // force with other bodies (not with itself)
             auto f        = [&](auto idx) { a += s.m[idx] * (s.x[idx] - xs) / dist3(xs, s.x[idx]); };
-            uint64_t bidx = 2 * (tree_index - nnodes_until_level(deep_level));
+            node_t bidx = 2 * (tree_index - nnodes_until_level(last_level));
             if (bidx < nbodies && bidx != i) f(bidx);
             bidx = bidx + 1;
             if (bidx < nbodies && bidx != i) f(bidx);
@@ -270,7 +272,7 @@ void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
 
     auto s2 = clock_timer::now();
     // Compute the force on each body using Barnes-Hut:
-    tree.compute_force(system);
+    tree.compute_force(system, theta);
 
     auto s3 = clock_timer::now();
     // Apply acceleration
