@@ -11,6 +11,7 @@ using clock_timer = std::chrono::steady_clock;
 #include "all_pairs.h"
 #include "arguments.h"
 #include "barnes_hut.h"
+#include "hilbert_tree.h"
 #include "models.h"
 
 template <typename T, dim_t N>
@@ -54,10 +55,11 @@ auto run_precision(Arguments arguments) -> void {
     }
   }();
   switch (arguments.simulation_algo) {
-    case SimulationAlgo::BarnesHut: return run_simulation<T, N>(arguments, system, run_barnes_hut<T, N>);
     case SimulationAlgo::AllPairs: return run_simulation<T, N>(arguments, system, run_all_pairs_step<T, N>);
     case SimulationAlgo::AllPairsCollapsed:
       return run_simulation<T, N>(arguments, system, run_all_pairs_collapsed_step<T, N>);
+    case SimulationAlgo::BarnesHut: return run_simulation<T, N>(arguments, system, run_barnes_hut<T, N>);
+    case SimulationAlgo::HilbertTree: return run_simulation<T, N>(arguments, system, run_hilbert_binary_tree<T, N>);
   }
 }
 

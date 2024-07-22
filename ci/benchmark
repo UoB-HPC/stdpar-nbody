@@ -1,0 +1,96 @@
+#!/usr/bin/env sh
+set -ex
+
+BUILD=0
+GCC=1
+CLANG=1
+CASE=galaxy
+export NO_PRINT=1
+export NO_SAVE=1
+
+if [ $BUILD = "1" ]; then
+   # Build all binaries
+   BUILD_ONLY=1 ./ci/run nvgpu all-pairs $CASE 2
+   BUILD_ONLY=1 ./ci/run nvgpu all-pairs $CASE 3
+   BUILD_ONLY=1 ./ci/run nvcpu all-pairs $CASE 2
+   BUILD_ONLY=1 ./ci/run nvcpu all-pairs $CASE 3
+   BUILD_ONLY=1 ./ci/run gcc all-pairs $CASE 2
+   BUILD_ONLY=1 ./ci/run gcc all-pairs $CASE 3
+   BUILD_ONLY=1 ./ci/run clang all-pairs $CASE 2
+   BUILD_ONLY=1 ./ci/run clang all-pairs $CASE 3
+fi
+
+GPU=0
+if command -v nvidia-smi ; then
+  GPU=1
+  # Log which GPU and Driver this run is from
+  nvidia-smi
+  # Log which CPU we are on
+  lscpu
+fi
+
+if [ $GPU = "1" ]; then
+   echo "2D float"
+   RUN_ONLY=1 ./ci/run nvgpu all-pairs $CASE 2 float
+   RUN_ONLY=1 ./ci/run nvgpu all-pairs-collapsed $CASE 2 float
+   RUN_ONLY=1 ./ci/run nvgpu barnes-hut $CASE 2 float
+
+   echo "2D double"
+   RUN_ONLY=1 ./ci/run nvgpu all-pairs $CASE 2 double
+   RUN_ONLY=1 ./ci/run nvgpu all-pairs-collapsed $CASE 2 double
+   RUN_ONLY=1 ./ci/run nvgpu barnes-hut $CASE 2 double
+
+   echo "3D float"
+   RUN_ONLY=1 ./ci/run nvgpu all-pairs $CASE 3 float
+   RUN_ONLY=1 ./ci/run nvgpu all-pairs-collapsed $CASE 3 float
+   RUN_ONLY=1 ./ci/run nvgpu barnes-hut $CASE 3 float
+
+   echo "3D double"
+   RUN_ONLY=1 ./ci/run nvgpu all-pairs $CASE 3 double
+   RUN_ONLY=1 ./ci/run nvgpu all-pairs-collapsed $CASE 3 double
+   RUN_ONLY=1 ./ci/run nvgpu barnes-hut $CASE 3 double
+fi
+
+if [ $GCC = "1" ]; then
+   echo "2D float"
+   RUN_ONLY=1 ./ci/run gcc all-pairs $CASE 2 float
+   RUN_ONLY=1 ./ci/run gcc all-pairs-collapsed $CASE 2 float
+   RUN_ONLY=1 ./ci/run gcc barnes-hut $CASE 2 float
+
+   echo "2D double"
+   RUN_ONLY=1 ./ci/run gcc all-pairs $CASE 2 double
+   RUN_ONLY=1 ./ci/run gcc all-pairs-collapsed $CASE 2 double
+   RUN_ONLY=1 ./ci/run gcc barnes-hut $CASE 2 double
+
+   echo "3D float"
+   RUN_ONLY=1 ./ci/run gcc all-pairs $CASE 3 float
+   RUN_ONLY=1 ./ci/run gcc all-pairs-collapsed $CASE 3 float
+   RUN_ONLY=1 ./ci/run gcc barnes-hut $CASE 3 float
+
+   echo "3D double"
+   RUN_ONLY=1 ./ci/run gcc all-pairs $CASE 3 double
+   RUN_ONLY=1 ./ci/run gcc all-pairs-collapsed $CASE 3 double
+   RUN_ONLY=1 ./ci/run gcc barnes-hut $CASE 3 double
+fi
+
+if [ $Clang = "1" ]; then
+   echo "2D float"
+   RUN_ONLY=1 ./ci/run clang all-pairs $CASE 2 float
+   RUN_ONLY=1 ./ci/run clang all-pairs-collapsed $CASE 2 float
+   RUN_ONLY=1 ./ci/run clang barnes-hut $CASE 2 float
+
+   echo "2D double"
+   RUN_ONLY=1 ./ci/run clang all-pairs $CASE 2 double
+   RUN_ONLY=1 ./ci/run clang all-pairs-collapsed $CASE 2 double
+   RUN_ONLY=1 ./ci/run clang barnes-hut $CASE 2 double
+
+   echo "3D float"
+   RUN_ONLY=1 ./ci/run clang all-pairs $CASE 3 float
+   RUN_ONLY=1 ./ci/run clang all-pairs-collapsed $CASE 3 float
+   RUN_ONLY=1 ./ci/run clang barnes-hut $CASE 3 float
+
+   echo "3D double"
+   RUN_ONLY=1 ./ci/run clang all-pairs $CASE 3 double
+   RUN_ONLY=1 ./ci/run clang all-pairs-collapsed $CASE 3 double
+   RUN_ONLY=1 ./ci/run clang barnes-hut $CASE 3 double
+fi

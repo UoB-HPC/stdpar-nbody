@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # Compiles and runs the n-body proxy application.
 #
-# ./run <toolchain> <algorithm> <workload case> <dim> <precision>
+# ./run <toolchain> <algorithm> <workload case> <dim> <precision> <bodies> <steps>
 #
 # Examples:
 # ./run nvgpu galaxy barnes-hut
@@ -67,11 +67,23 @@ fi
 
 # Run the binary:
 if [ $RUN = "1" ]; then
+  SAVE="--save pos"
+  if [ $NO_SAVE = 1 ]; then
+      SAVE="--save none"
+  fi
+
   OMP_PLACES=cores OMP_PROC_BIND=close \
-    ./${BIN} -s $STEPS -n $BODIES --save pos \
+    ./${BIN} -s $STEPS -n $BODIES ${SAVE} \
     --algorithm ${2} \
     --workload ${3} \
-    --precision ${PREC}
-  python3 scripts/plotter.py pos --${3} --gif
-  mv nbody_animation.gif nbody_${2}_${3}_${PREC}.gif
+    --precision ${PREC} #--print-info
+
+  PRINT="1"
+  if [ $NO_PRINT = "1" ]; then
+      PRINT="0"
+  fi
+  if [ $PRINT = "1" ]; then
+      python3 scripts/plotter.py pos --${3} --gif
+      mv nbody_animation.gif nbody_${2}_${3}_${PREC}.gif
+  fi
 fi
