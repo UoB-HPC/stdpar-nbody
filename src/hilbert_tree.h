@@ -33,8 +33,8 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
 
   // Compute the Hilbert index for each body in the Cartesian grid
   auto bids = system.body_indices();
-  std::vector<uint32_t> hilbert_ids(system.size);
-  std::for_each(std::execution::par_unseq, bids.begin(), bids.end(),
+  static std::vector<uint64_t> hilbert_ids(system.size);
+  std::for_each(std::execution::seq, bids.begin(), bids.end(),
                 [hids = hilbert_ids.data(), x = system.x.data(), mins = bbox.xmin, grid_cell_size](auto idx) {
                   // Bucket the body into a Cartesian grid cell:
                   vec<uint32_t, N> cell_idx = cast<uint32_t>((x[idx] - mins) / grid_cell_size);
@@ -73,7 +73,7 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
 #else
   auto r = std::views::zip(hilbert_ids, system.x, system.m, system.v, system.a, system.ao);
   std::sort(std::execution::par_unseq, r.begin(), r.end(),
-            [hids = hilbert_ids.data()](auto a, auto b) { return std::get<0>(a) < std::get<0>(b); });
+            [](auto a, auto b) { return std::get<0>(a) < std::get<0>(b); });
 #endif
 }
 

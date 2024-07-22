@@ -23,7 +23,7 @@ struct vec {
 
   static constexpr vec<T, N> splat(T v) {
     vec<T, N> o;
-    for (int i = 0; i < N; ++i) o[i] = v;
+    for (dim_t i = 0; i < N; ++i) o[i] = v;
     return o;
   }
   static constexpr vec<T, N> from(T x, T y) {
@@ -37,7 +37,7 @@ struct vec {
     requires(std::is_same_v<T, bool>)
   {
     bool r = true;
-    for (int i = 0; i < N; ++i) r &= (*this)[i];
+    for (dim_t i = 0; i < N; ++i) r &= (*this)[i];
     return r;
   }
 };
@@ -53,7 +53,7 @@ void write(vec<T, 2> v, T& x, T& y) {
 
 template <typename T, dim_t N>
 constexpr vec<T, N>& operator+=(vec<T, N>& a, vec<T, N> b) {
-  for (int i = 0; i < N; ++i) a[i] += b[i];
+  for (dim_t i = 0; i < N; ++i) a[i] += b[i];
   return a;
 }
 
@@ -65,7 +65,7 @@ constexpr vec<T, N> operator+(vec<T, N> a, vec<T, N> b) {
 
 template <typename T, dim_t N>
 constexpr vec<T, N>& operator-=(vec<T, N>& a, vec<T, N> b) {
-  for (int i = 0; i < N; ++i) a[i] = a[i] - b[i];
+  for (dim_t i = 0; i < N; ++i) a[i] = a[i] - b[i];
   return a;
 }
 
@@ -77,7 +77,7 @@ constexpr vec<T, N> operator-(vec<T, N> a, vec<T, N> b) {
 
 template <typename T, dim_t N>
 constexpr vec<T, N>& operator*=(vec<T, N>& a, T s) {
-  for (int i = 0; i < N; ++i) a[i] *= s;
+  for (dim_t i = 0; i < N; ++i) a[i] *= s;
   return a;
 }
 
@@ -94,7 +94,7 @@ constexpr vec<T, N> operator*(vec<T, N> a, T s) {
 
 template <typename T, dim_t N>
 constexpr vec<T, N>& operator/=(vec<T, N>& a, T s) {
-  for (int i = 0; i < N; ++i) a[i] /= s;
+  for (dim_t i = 0; i < N; ++i) a[i] /= s;
   return a;
 }
 
@@ -110,7 +110,7 @@ constexpr vec<T, N> operator/(vec<T, N> a, T s) {
 }
 template <typename T, dim_t N>
 constexpr vec<T, N> operator/(vec<T, N> a, vec<T, N> b) {
-  for (int i = 0; i < N; ++i) a[i] /= b[i];
+  for (dim_t i = 0; i < N; ++i) a[i] /= b[i];
   return a;
 }
 
@@ -120,21 +120,21 @@ constexpr vec<T, N> operator/(vec<T, N> a, vec<T, N> b) {
 template <typename T, dim_t N>
 constexpr bool operator==(vec<T, N> const & a, vec<T, N> const & b) {
   bool is_equal = true;
-  for (int i = 0; i < N; ++i) is_equal = is_equal && (a[i] == b[i]);
+  for (dim_t i = 0; i < N; ++i) is_equal = is_equal && (a[i] == b[i]);
   return is_equal;
 }
 
 template <typename T, dim_t N>
 constexpr vec<bool, N> operator<(vec<T, N> a, vec<T, N> b) {
   vec<bool, N> v;
-  for (int i = 0; i < N; ++i) v[i] = a[i] < b[i];
+  for (dim_t i = 0; i < N; ++i) v[i] = a[i] < b[i];
   return v;
 }
 
 template <typename T, dim_t N>
 constexpr vec<bool, N> operator<(vec<T, N> a, T s) {
   vec<bool, N> v;
-  for (int i = 0; i < N; ++i) v[i] = a[i] < s;
+  for (dim_t i = 0; i < N; ++i) v[i] = a[i] < s;
   return v;
 }
 
@@ -150,7 +150,7 @@ T gmin(T a, T b) {
 template <typename T, dim_t N>
 constexpr T min(vec<T, N> v) {
   T r = v[0];
-  for (int i = 1; i < N; ++i) r = gmin(r, v[i]);
+  for (dim_t i = 1; i < N; ++i) r = gmin(r, v[i]);
   return r;
 }
 
@@ -163,7 +163,7 @@ T gmax(T a, T b) {
 template <typename T, dim_t N>
 constexpr T max(vec<T, N> v) {
   T r = v[0];
-  for (int i = 1; i < N; ++i) r = gmax(r, v[i]);
+  for (dim_t i = 1; i < N; ++i) r = gmax(r, v[i]);
   return r;
 }
 
@@ -173,39 +173,39 @@ constexpr T max(vec<T, N> v) {
 // Fused Multiply Add: s * a + b
 template <typename T, dim_t N>
 constexpr vec<T, N> fma(T s, vec<T, N> a, vec<T, N> b) {
-  for (int i = 0; i < N; ++i) a[i] = std::fma(s, a[i], b[i]);
+  for (dim_t i = 0; i < N; ++i) a[i] = std::fma(s, a[i], b[i]);
   return a;
 }
 
 // Fused Multiply Add: a * b + c
 template <typename T, dim_t N>
 constexpr vec<T, N> fma(vec<T, N> a, vec<T, N> b, vec<T, N> c) {
-  for (int i = 0; i < N; ++i) a[i] = std::fma(a[i], b[i], c[i]);
+  for (dim_t i = 0; i < N; ++i) a[i] = std::fma(a[i], b[i], c[i]);
   return a;
 }
 
 template <typename T, dim_t N>
 constexpr vec<T, N> max(vec<T, N> a, vec<T, N> b) {
-  for (int i = 0; i < N; ++i) a[i] = gmax(a[i], b[i]);
+  for (dim_t i = 0; i < N; ++i) a[i] = gmax(a[i], b[i]);
   return a;
 }
 
 template <typename T, dim_t N>
 constexpr vec<T, N> min(vec<T, N> a, vec<T, N> b) {
-  for (int i = 0; i < N; ++i) a[i] = gmin(a[i], b[i]);
+  for (dim_t i = 0; i < N; ++i) a[i] = gmin(a[i], b[i]);
   return a;
 }
 
 template <typename T, dim_t N>
 constexpr vec<T, N> abs(vec<T, N> a) {
-  for (int i = 0; i < N; ++i) a[i] = std::abs(a[i]);
+  for (dim_t i = 0; i < N; ++i) a[i] = std::abs(a[i]);
   return a;
 }
 
 template <typename T, dim_t N>
 constexpr T sum(vec<T, N> v) {
   T tmp = T(0.);
-  for (int i = 0; i < N; ++i) tmp += v[i];
+  for (dim_t i = 0; i < N; ++i) tmp += v[i];
   return tmp;
 }
 
@@ -218,7 +218,7 @@ constexpr T avg(vec<T, N> v) {
 template <typename T, dim_t N>
 constexpr T l2norm2(vec<T, N> v) {
   T tmp = T(0.);
-  for (int i = 0; i < N; ++i) tmp += v[i] * v[i];
+  for (dim_t i = 0; i < N; ++i) tmp += v[i] * v[i];
   return tmp;
 }
 
@@ -232,7 +232,7 @@ constexpr T l2norm(vec<T, N> v) {
 template <typename T, dim_t N>
 constexpr T dist2(vec<T, N> a, vec<T, N> b) {
   T tmp = T(0.);
-  for (int i = 0; i < N; ++i) {
+  for (dim_t i = 0; i < N; ++i) {
     T di = std::abs(a[i] - b[i]);
     tmp += di * di;
   }
@@ -256,7 +256,7 @@ constexpr T dist3(vec<T, N> a, vec<T, N> b) {
 template <typename U, typename T, dim_t N>
 vec<U, N> cast(vec<T, N> v) {
   vec<U, N> r;
-  for (int i = 0; i < N; ++i) r[i] = static_cast<U>(v[i]);
+  for (dim_t i = 0; i < N; ++i) r[i] = static_cast<U>(v[i]);
   return r;
 }
 
@@ -267,22 +267,22 @@ template <dim_t N>
 constexpr uint64_t interleave_bits(vec<uint32_t, N> x) {
   if constexpr (N == 2) {
     auto bit_split = [](uint64_t x) {
-      x = (x | x << 16) & 0xffff0000ffff;
-      x = (x | x << 8) & 0xff00ff00ff00ff;
-      x = (x | x << 4) & 0xf0f0f0f0f0f0f0f;
-      x = (x | x << 2) & 0x3333333333333333;
-      x = (x | x << 1) & 0x5555555555555555;
+      x = (x | x << 16) & uint64_t(0xffff0000ffff);
+      x = (x | x << 8) & uint64_t(0xff00ff00ff00ff);
+      x = (x | x << 4) & uint64_t(0xf0f0f0f0f0f0f0f);
+      x = (x | x << 2) & uint64_t(0x3333333333333333);
+      x = (x | x << 1) & uint64_t(0x5555555555555555);
       return x;
     };
     return bit_split(x[1]) | (bit_split(x[0]) << 1);
   } else if constexpr (N == 3) {
     auto bit_split = [](uint64_t x) {
-      x &= 0x1fffff;
-      x = (x | x << 32) & 0x1f00000000ffff;
-      x = (x | x << 16) & 0x1f0000ff0000ff;
-      x = (x | x << 8) & 0x100f00f00f00f00f;
-      x = (x | x << 4) & 0x10c30c30c30c30c3;
-      x = (x | x << 2) & 0x1249249249249249;
+      x &= uint64_t(0x1fffff);
+      x = (x | x << 32) & uint64_t(0x1f00000000ffff);
+      x = (x | x << 16) & uint64_t(0x1f0000ff0000ff);
+      x = (x | x << 8) & uint64_t(0x100f00f00f00f00f);
+      x = (x | x << 4) & uint64_t(0x10c30c30c30c30c3);
+      x = (x | x << 2) & uint64_t(0x1249249249249249);
       return x;
     };
     return bit_split(x[2]) | (bit_split(x[1]) << 1) | (bit_split(x[0]) << 2);
@@ -359,7 +359,7 @@ uint64_t hilbert(vec<uint32_t, N> x) {
 template <typename Os, typename T, dim_t N>
 Os& operator<<(Os& os, vec<T, N> const & v) {
   os << "(";
-  for (int i = 0; i < N; ++i) {
+  for (dim_t i = 0; i < N; ++i) {
     os << v[i];
     if (i != N - 1) os << ",";
   }
@@ -406,11 +406,6 @@ template <typename Os, typename T, dim_t N>
 Os& operator<<(Os& os, aabb<T, N> const & b) {
   os << "{min:" << b.xmin << ",max:" << b.xmax << "}";
   return os;
-}
-
-template <typename T, dim_t N>
-bool inside(aabb<T, N> b, vec<T, N> x) {
-  return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
