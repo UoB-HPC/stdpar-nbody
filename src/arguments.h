@@ -12,9 +12,10 @@ enum class SimulationType {
 };
 
 enum class SimulationAlgo {
-  BarnesHut,
   AllPairs,
   AllPairsCollapsed,
+  BarnesHut,
+  HilbertTree,
 };
 
 struct Arguments {
@@ -67,6 +68,8 @@ inline auto parse_args(std::vector<std::string>&& args) {
         arguments.simulation_algo = SimulationAlgo::AllPairsCollapsed;
       } else if (args[arg_index] == "barnes-hut") {
         arguments.simulation_algo = SimulationAlgo::BarnesHut;
+      } else if (args[arg_index] == "hilbert-tree") {
+        arguments.simulation_algo = SimulationAlgo::HilbertTree;
       } else {
         cerr << "Unknown algorithm: \"" << args[arg_index] << "\"." << endl;
         cerr << "Options are: all-pairs, all-pairs-collapsed, barnes-hut (default)." << endl;

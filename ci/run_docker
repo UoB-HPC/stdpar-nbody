@@ -34,6 +34,10 @@ case $1 in
         # Format the code using the container's clang-format:
         docker run $DOCKER_CMDS bash -c "set -ex && ./ci/fmt"
         ;;
+    bench)
+        # Format the code using the container's clang-format:
+        docker run $DOCKER_CMDS bash -c "set -ex && ./ci/benchmark"
+        ;;
     *)
         # Run container:
         docker run $DOCKER_CMDS \
