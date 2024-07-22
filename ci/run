@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # Compiles and runs the n-body proxy application.
 #
-# ./run <toolchain> <algorithm> <workload case> <dim> <precision> <bodies> <steps>
+# ./run <toolchain> <algorithm> <workload case> <dim> <precision> <bodies> <steps> <profiler>
 #
 # Examples:
 # ./run nvgpu galaxy barnes-hut
@@ -10,8 +10,15 @@
 # RUN=1 ./run nvgpu galaxy barnes-hut
 set -ex
 
-STEPS=1000
 BODIES=100000
+if [ ! -z $6 ]; then
+    BODIES=$6
+fi
+
+STEPS=1000
+if [ ! -z $7 ]; then
+    STEPS=$7
+fi
 
 DIM=3
 if [ ! -z $4 ]; then
@@ -22,6 +29,12 @@ PREC=float
 if [ ! -z $5 ]; then
     PREC=$5
 fi
+
+PROFILER=0
+if [ ! -z $8 ]; then
+    PROFILER=1
+fi
+
 
 BUILD=1
 RUN=1
@@ -72,7 +85,12 @@ if [ $RUN = "1" ]; then
       SAVE="--save none"
   fi
 
-  OMP_PLACES=cores OMP_PROC_BIND=close \
+  PROFILER_CMD=""
+  if [ $PROFILER = "1" ]; then
+      PROFILER_CMD="nsys profile --trace=nvtx,cuda,osrt --force-overwrite=true -o report.nsys-rep "
+  fi
+
+  OMP_PLACES=cores OMP_PROC_BIND=close $PROFILER_CMD \
     ./${BIN} -s $STEPS -n $BODIES ${SAVE} \
     --algorithm ${2} \
     --workload ${3} \
