@@ -29,6 +29,8 @@ struct Arguments {
   double theta                          = 0.5;
   bool save_pos                         = false;
   bool save_energy                      = false;
+  bool csv_detailed                     = false;
+  bool csv_total                        = false;
   std::optional<std::string> load_input = {};
 };
 
@@ -49,6 +51,10 @@ inline auto parse_args(std::vector<std::string>&& args) {
     } else if (args[arg_index] == "--theta") {
       arg_index += 1;
       arguments.theta = stod(args[arg_index]);
+    } else if (args[arg_index] == "--csv-detailed") {
+      arguments.csv_detailed = true;
+    } else if (args[arg_index] == "--csv-total") {
+      arguments.csv_total = true;
     } else if (args[arg_index] == "--precision") {
       arg_index += 1;
       if (args[arg_index] == "float") {
@@ -134,8 +140,13 @@ inline auto parse_args(std::vector<std::string>&& args) {
       exit(EXIT_SUCCESS);
     } else {
       cout << format("Unknown argument: '{}'\n", args[arg_index]);
-      exit(1);
+      exit(EXIT_FAILURE);
     }
+  }
+
+  if (arguments.csv_detailed && arguments.csv_total) {
+    cerr << "Cannot capture a CSV detailed and coarse trace in the same run. Specify one or the other." << endl;
+    exit(EXIT_FAILURE);
   }
 
   return arguments;

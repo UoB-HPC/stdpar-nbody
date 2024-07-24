@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "alloc.h"
+#include "execution.h"
 #include "vec.h"
 
 template <typename T, dim_t N>
@@ -52,7 +53,7 @@ class System {
   void accelerate_step() {
     // performs leap frog integration
     auto r = body_indices();
-    std::for_each(std::execution::par_unseq, r.begin(), r.end(), [s = state()](auto i) {
+    std::for_each(par_unseq, r.begin(), r.end(), [s = state()](auto i) {
       s.x[i] += s.dt * s.v[i] + T(0.5) * s.dt * s.dt * s.ao[i];
       s.v[i] += T(0.5) * s.dt * (s.a[i] + s.ao[i]);
       s.ao[i] = s.a[i];
@@ -60,14 +61,13 @@ class System {
   }
 
   auto calc_energies() const -> std::tuple<T, T> {
-    auto r = body_indices();
-    T kinetic_energy
-     = static_cast<T>(0.5)
-       * std::transform_reduce(std::execution::par_unseq, r.begin(), r.end(), static_cast<T>(0), std::plus<T>{},
-                               [m = m.data(), v = v.data()](auto i) { return m[i] * l2norm2(v[i]); });
+    auto r           = body_indices();
+    T kinetic_energy = static_cast<T>(0.5)
+                       * std::transform_reduce(par_unseq, r.begin(), r.end(), static_cast<T>(0), std::plus<T>{},
+                                               [m = m.data(), v = v.data()](auto i) { return m[i] * l2norm2(v[i]); });
     T gravitational_energy = -static_cast<T>(0.5) * constant
-                             * std::transform_reduce(std::execution::par_unseq, r.begin(), r.end(), static_cast<T>(0),
-                                                     std::plus<T>{}, [m = m.data(), x = x.data(), sz = size](auto i) {
+                             * std::transform_reduce(par_unseq, r.begin(), r.end(), static_cast<T>(0), std::plus<T>{},
+                                                     [m = m.data(), x = x.data(), sz = size](auto i) {
                                                        T total = 0;
                                                        T mi    = m[i];
                                                        auto xi = x[i];
