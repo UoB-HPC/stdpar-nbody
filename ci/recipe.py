@@ -49,16 +49,20 @@ Stage0 += shell(commands=[
 ])
 
 # Install and configure AdaptiveCpp:
-Stage0 += boost(version=boost_ver)
-Stage0 += shell(commands=[
+# Install and configure AdaptiveCpp:
+if True:
+    Stage0 += boost(version=boost_ver)
+    Stage0 += shell(commands=[
         'set -ex',
+        # Need this for AdaptiveCpp to find LLVM
+        f'ln -sf /usr/lib/llvm-{llvm_ver}/lib/libLLVM-{llvm_ver}.so /usr/lib/llvm-{llvm_ver}/lib/libLLVM.so',
         'git clone --recurse-submodules -b develop https://github.com/AdaptiveCpp/AdaptiveCpp',
         'cd AdaptiveCpp',
         'git submodule update --recursive',
         f'cmake -Bbuild -H.  -DCMAKE_C_COMPILER="$(which clang-{llvm_ver})" -DCMAKE_CXX_COMPILER="$(which clang++-{llvm_ver})" -DCMAKE_INSTALL_PREFIX=/opt/adaptivecpp  -DWITH_CUDA_BACKEND=ON  -DWITH_CPU_BACKEND=ON',
         'cmake --build build --target install -j $(nproc)',
-])
-Stage0 += environment(variables={
+    ])
+    Stage0 += environment(variables={
         'PATH':'$PATH:/opt/adaptivecpp/bin',
         'ACPP_APPDB_DIR': '/src/',
-})
+    })
