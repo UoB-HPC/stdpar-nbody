@@ -19,6 +19,7 @@ DOCKER_CMDS="\
        --privileged \
        -u $(id -u):$(id -g) \
        -v $(pwd):/src \
+       -h $(hostname) \
        -e RUN_ONLY:"${RUN_ONLY}" \
        -e BUILD_ONLY:"${BUILD_ONLY}" \
        -w /src \
@@ -36,7 +37,7 @@ case $1 in
         ;;
     bench)
         # Format the code using the container's clang-format:
-        docker run $DOCKER_CMDS bash -c "set -ex && ./ci/benchmark 2>&1 | tee outfile"
+        docker run $DOCKER_CMDS bash -c "set -ex && ./ci/benchmark 2>&1 | tee out_$(hostname)"
         ;;
     *)
         # Run container:
