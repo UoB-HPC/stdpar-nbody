@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -ex
+
+GPUS=1
+CPUS=1
+BUILD=1
+CASE=galaxy
+export NO_PRINT=1
+export NO_SAVE=2
+
+fps=(double)
+dims=(3)
+steps=1000
+compilers=(nvgpu clang)
+algorithms=(all-pairs barnes-hut hilbert-tree all-pairs-collapsed)
+
+if [ $BUILD = "1" ]; then
+    # Build all binaries
+    for c in ${compilers[@]}; do
+	for d in ${dims[@]}; do
+	    BUILD_ONLY=1 ./ci/run ${c} all-pairs $CASE ${d}
+	done
+    done
+
+    # Build all binaries sequentially
+    for c in ${compilers[@]}; do
+	for d in ${dims[@]}; do
+	    BUILD_ONLY=1 ./ci/run ${c} all-pairs $CASE ${d} double 1000 1000 1
+	done
+    done
+fi
+
+if command -v nvidia-smi > /dev/null ; then
+  # Log which GPU and Driver this run is from
+  nvidia-smi --query-gpu=gpu_name,driver_version --format=csv
+fi
+lscpu | grep "Model name"
+lscpu | grep "Core(s) per socket"
+echo "hostname:$(hostname)"
+
+if [ $GPUS = "1" ]; then
+    compilers=(nvgpu)
+
+    # Run for all algorithms
+    bodies=(100000)
+    for fp in ${fps[@]}; do
+	for d in ${dims[@]}; do
+	    for a in ${algorithms[@]}; do
+		for c in ${compilers[@]}; do
+		    echo "compiler:${c}"
+		    for b in ${bodies[@]}; do
+			RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps}
+		    done
+		done
+	    done
+	done
+    done
+fi
+
+if [ $CPUS = "1" ]; then
+    steps=200
+    compilers=(clang)
+
+    # Only run mid sizes on CPUs for algorithms different from all-pairs-collapsed
+    bodies=(100000)
+    for fp in ${fps[@]}; do
+	for d in ${dims[@]}; do
+	    for a in ${algorithms[@]}; do
+		for c in ${compilers[@]}; do
+		    echo "compiler:${c}"
+		    for b in ${bodies[@]}; do
+			RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps}
+		    done
+		done
+	    done
+	done
+    done
+fi
