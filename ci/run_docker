@@ -6,7 +6,7 @@
 #
 # Build and run the benchmarks
 # ./ci/run_docker ...options (see ./ci/run)...
-set -ex
+set -e
 
 IMG=barneshut:latest
 
@@ -19,6 +19,7 @@ DOCKER_CMDS="\
        --privileged \
        -u $(id -u):$(id -g) \
        -v $(pwd):/src \
+       -h $(hostname) \
        -e RUN_ONLY:"${RUN_ONLY}" \
        -e BUILD_ONLY:"${BUILD_ONLY}" \
        -w /src \
@@ -34,13 +35,17 @@ case $1 in
         # Format the code using the container's clang-format:
         docker run $DOCKER_CMDS bash -c "set -ex && ./ci/fmt"
         ;;
+    bench_detail)
+        # Format the code using the container's clang-format:
+        docker run $DOCKER_CMDS bash -c "set -ex && ./ci/benchmark_detailed 2>&1 | tee out_$(hostname)"
+        ;;
     bench)
         # Format the code using the container's clang-format:
-        docker run $DOCKER_CMDS bash -c "set -ex && ./ci/benchmark"
+        docker run $DOCKER_CMDS bash -c "set -ex && ./ci/benchmark 2>&1 | tee out_$(hostname)"
         ;;
     *)
         # Run container:
         docker run $DOCKER_CMDS \
-            bash -c "set -ex && RUN_ONLY=$RUN_ONLY BUILD_ONLY=$BUILD_ONLY ./ci/run $1 $2 $3 $4 $5 $6 $7 $8"
+            bash -c "set -ex && RUN_ONLY=$RUN_ONLY BUILD_ONLY=$BUILD_ONLY ./ci/run $1 $2 $3 $4 $5 $6 $7 $8 $9"
         ;;
 esac

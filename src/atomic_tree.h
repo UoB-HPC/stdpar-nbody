@@ -5,6 +5,7 @@
 
 #include "alloc.h"
 #include "atomic.h"
+#include "execution.h"
 #include "system.h"
 
 template <typename T, dim_t N, typename Index = std::uint32_t>
@@ -86,8 +87,7 @@ struct atomic_tree {
   // Resets all nodes in the tree to ready it for the next iteration:
   void clear(System<T, N>& system, Index last_node) {
     auto r = system.body_indices();
-    std::for_each_n(std::execution::par_unseq, r.begin(), last_node,
-                    [tree = *this](auto tree_index) { tree.clear(tree_index); });
+    std::for_each_n(par_unseq, r.begin(), last_node, [tree = *this](auto tree_index) { tree.clear(tree_index); });
   }
 
   // Compute bounds of the root node of the tree
@@ -95,13 +95,11 @@ struct atomic_tree {
   void compute_bounds(System<T, N>& system) {
     auto r                    = system.body_indices();
     auto [min_size, max_size] = std::transform_reduce(
-     std::execution::par_unseq, r.begin(), r.end(), std::make_tuple<T, T>(0, 0),
+     par_unseq, r.begin(), r.end(), std::make_tuple<T, T>(0, 0),
      [](auto lhs, auto rhs) -> std::tuple<T, T> {
        return {gmin(std::get<0>(lhs), std::get<0>(rhs)), gmax(std::get<1>(lhs), std::get<1>(rhs))};
      },
-     [s = system.state()](auto i) -> std::tuple<T, T> {
-       return {min(s.x[i]), max(s.x[i])};
-     });
+     [s = system.state()](auto i) -> std::tuple<T, T> { return {min(s.x[i]), max(s.x[i])}; });
 
     // adjust boundary
     max_size += 1;
@@ -182,7 +180,7 @@ struct atomic_tree {
   // Inserts all bodies in system into the tree:
   void insert(System<T, N>& system) {
     auto r = system.body_indices();
-    std::for_each(std::execution::par, r.begin(), r.end(),
+    std::for_each(par, r.begin(), r.end(),
                   [s = system.state(), tree = *this](Index i) { tree.insert(s.m[i], s.x[i]); });
   }
 
@@ -227,7 +225,7 @@ struct atomic_tree {
   // Compute tree nodes centroids and masses for all bodies in system:
   void compute_tree(System<T, N>& system) {
     auto r = system.body_indices();
-    std::for_each_n(std::execution::par, r.begin(), capacity, [tree = *this](auto i) { tree.compute_tree(i); });
+    std::for_each_n(par, r.begin(), capacity, [tree = *this](auto i) { tree.compute_tree(i); });
   }
 
   // Compute force at position `x` using cut-off parameter `theta`:
@@ -264,7 +262,7 @@ struct atomic_tree {
   // Compute forces of all bodies in `system` using cut-off parameter `theta`:
   void compute_force(System<T, N>& system, T const theta) {
     auto r = system.body_indices();
-    std::for_each(std::execution::par_unseq, r.begin(), r.end(), [s = system.state(), theta, tree = *this](Index i) {
+    std::for_each(par_unseq, r.begin(), r.end(), [s = system.state(), theta, tree = *this](Index i) {
       s.a[i] = s.c * tree.compute_force(s.x[i], theta);
     });
   }

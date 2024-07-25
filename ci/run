@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # Compiles and runs the n-body proxy application.
 #
-# ./run <toolchain> <algorithm> <workload case> <dim> <precision> <bodies> <steps> <profiler>
+# ./run <toolchain> <algorithm> <workload case> <dim> <precision> <bodies> <steps> <sequential> <profiler>
 #
 # Examples:
 # ./run nvgpu galaxy barnes-hut
@@ -9,7 +9,6 @@
 # BUILD=1 ./run nvgpu galaxy barnes-hut
 # RUN=1 ./run nvgpu galaxy barnes-hut
 set -ex
-
 BODIES=100000
 if [ ! -z $6 ]; then
     BODIES=$6
@@ -30,19 +29,27 @@ if [ ! -z $5 ]; then
     PREC=$5
 fi
 
-PROFILER=0
+SEQUENTIAL=0
 if [ ! -z $8 ]; then
+    SEQUENTIAL=1
+fi
+
+PROFILER=0
+if [ ! -z $9 ]; then
     PROFILER=1
 fi
 
-
 BUILD=1
 RUN=1
-if [ $RUN_ONLY = "1" ]; then
-    BUILD=0
+if [ ! -z $RUN_ONLY ]; then
+    if [ $RUN_ONLY = "1" ]; then
+	BUILD=0
+    fi
 fi
-if [ $BUILD_ONLY = "1" ]; then
-    RUN=0
+if [ ! -z $BUILD_ONLY ]; then
+    if [ $BUILD_ONLY = "1" ]; then
+	RUN=0
+    fi
 fi
 BIN="nbody_${1}_${DIM}"
 if [ ! -f ${BIN} ]; then
@@ -50,13 +57,18 @@ if [ ! -f ${BIN} ]; then
     BUILD=1
 fi
 
+if [ $SEQUENTIAL = "1" ]; then
+    BIN="${BIN}_seq"
+    CXXFLAGS="-DSEQUENTIAL"
+fi
+
 # Build the binary
 if [ $BUILD = "1" ]; then
   # Build options for all compilers (portable standard compilation options):
-  CXXFLAGS="-Ofast -DNDEBUG -std=c++23 -mcpu=native -Wall -Wextra -Iinclude -DDIM_SIZE=${DIM} -o ${BIN}"
+  CXXFLAGS="${CXXFLAGS} -Ofast -DNDEBUG -std=c++23 -mcpu=native -Wall -Wextra -Iinclude -DDIM_SIZE=${DIM} -o ${BIN}"
   case $1 in
     nvgpu)
-	nvc++ ${CXXFLAGS} -stdpar=gpu -gpu=ccnative src/main.cpp
+	nvc++ ${CXXFLAGS} -stdpar=gpu -gpu=ccnative --diag_suppress no_device_stack src/main.cpp
 	;;
     nvcpu)
 	nvc++ ${CXXFLAGS} -stdpar=multicore src/main.cpp
@@ -81,8 +93,12 @@ fi
 # Run the binary:
 if [ $RUN = "1" ]; then
   SAVE="--save pos"
-  if [ $NO_SAVE = 1 ]; then
-      SAVE="--save none"
+  if [ ! -z $NO_SAVE ]; then
+      if [ $NO_SAVE = "1" ]; then
+	  SAVE="--save none --csv-total"
+      elif [ $NO_SAVE = "2" ]; then
+	  SAVE="--save none --csv-detailed"
+      fi
   fi
 
   PROFILER_CMD=""
@@ -97,8 +113,10 @@ if [ $RUN = "1" ]; then
     --precision ${PREC} #--print-info
 
   PRINT="1"
-  if [ $NO_PRINT = "1" ]; then
-      PRINT="0"
+  if [ ! -z $NO_PRINT ]; then
+      if [ $NO_PRINT = "1" ]; then
+	  PRINT="0"
+      fi
   fi
   if [ $PRINT = "1" ]; then
       python3 scripts/plotter.py pos --${3} --gif

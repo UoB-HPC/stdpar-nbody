@@ -1,11 +1,11 @@
 #pragma once
 #include <algorithm>
 #include <bit>
-#include <execution>
 #include <ranges>
 
 #include "arguments.h"
 #include "atomic_tree.h"
+#include "execution.h"
 #include "saving.h"
 #include "system.h"
 
@@ -15,7 +15,7 @@ using clock_timer = std::chrono::steady_clock;
 template <typename T, dim_t N>
 aabb<T, N> bounding_box(std::span<vec<T, N>> xs) {
   return std::transform_reduce(
-   std::execution::par_unseq, xs.begin(), xs.end(), aabb<T, N>(from_points, xs[0]),
+   par_unseq, xs.begin(), xs.end(), aabb<T, N>(from_points, vec<T, N>::splat(0.)),
    [](auto a, auto b) { return merge(a, b); }, [](auto a) { return aabb<T, N>(from_points, a); });
 }
 
@@ -34,7 +34,7 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
   // Compute the Hilbert index for each body in the Cartesian grid
   auto bids = system.body_indices();
   static std::vector<uint64_t> hilbert_ids(system.size);
-  std::for_each(std::execution::seq, bids.begin(), bids.end(),
+  std::for_each(par_unseq, bids.begin(), bids.end(),
                 [hids = hilbert_ids.data(), x = system.x.data(), mins = bbox.xmin, grid_cell_size](auto idx) {
                   // Bucket the body into a Cartesian grid cell:
                   vec<uint32_t, N> cell_idx = cast<uint32_t>((x[idx] - mins) / grid_cell_size);
@@ -49,17 +49,17 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
   // TODO: sort an array of keys and then apply a permutation in O(N) time and O(1) storage
   // (instead of O(N) time and O(N) storage).
   static std::vector<std::tuple<uint64_t, vec<T, 3>, T, vec<T, 3>, vec<T, 3>, vec<T, 3>>> tmp(system.size);
-  std::for_each(std::execution::par_unseq, tmp.begin(), tmp.end(),
+  std::for_each(par_unseq, tmp.begin(), tmp.end(),
                 [tmp = tmp.data(), hid = hilbert_ids.data(), x = system.x.data(), m = system.m.data(),
                  v = system.v.data(), a = system.a.data(), ao = system.ao.data()](auto& e) {
                   auto idx = &e - tmp;
                   e        = std::make_tuple(hid[idx], x[idx], m[idx], v[idx], a[idx], ao[idx]);
                 });
   // sort by hilbert id
-  std::sort(std::execution::par_unseq, tmp.begin(), tmp.end(),
+  std::sort(par_unseq, tmp.begin(), tmp.end(),
             [](auto const & a, auto const & b) { return std::get<0>(a) < std::get<0>(b); });
   // copy back
-  std::for_each(std::execution::par_unseq, tmp.begin(), tmp.end(),
+  std::for_each(par_unseq, tmp.begin(), tmp.end(),
                 [tmp = tmp.data(), hid = hilbert_ids.data(), x = system.x.data(), m = system.m.data(),
                  v = system.v.data(), a = system.a.data(), ao = system.ao.data()](auto& e) {
                   auto idx = &e - tmp;
@@ -72,19 +72,18 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
 
 #else
   auto r = std::views::zip(hilbert_ids, system.x, system.m, system.v, system.a, system.ao);
-  std::sort(std::execution::par_unseq, r.begin(), r.end(),
-            [](auto a, auto b) { return std::get<0>(a) < std::get<0>(b); });
+  std::sort(par_unseq, r.begin(), r.end(), [](auto a, auto b) { return std::get<0>(a) < std::get<0>(b); });
 #endif
 }
 
 template <typename T, dim_t N>
 struct bvh {
-  using node_t = uint32_t;
+  using node_t  = uint32_t;
   using level_t = uint32_t;
-  level_t last_level; //< Last level in the tree, i.e., leaf-level - 1 (leaf level is just bodies).
-  aabb<T, N>* b;  //< Axis-Aligned Bounding-Boxes
-  T* m;           //< Monopole Masses
-  vec<T, N>* x;   //< Monopole Centers of Mass
+  level_t last_level;  //< Last level in the tree, i.e., leaf-level - 1 (leaf level is just bodies).
+  aabb<T, N>* b;       //< Axis-Aligned Bounding-Boxes
+  T* m;                //< Monopole Masses
+  vec<T, N>* x;        //< Monopole Centers of Mass
 
   // The number of nodes at each level is "2^l" because each tree level is fully refined:
   static constexpr level_t nnodes_at_level(level_t l) { return ipow2(l); }
@@ -144,7 +143,7 @@ struct bvh {
     {
       auto ids   = nodes(last_level);
       auto first = ids[0];
-      std::for_each(std::execution::par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](node_t i) {
+      std::for_each(par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](node_t i) {
         auto li = i - first;
         auto bl = (li * 2);
         auto br = bl + 1;
@@ -171,7 +170,7 @@ struct bvh {
       auto ids   = nodes(l);
       auto first = ids[0];
       auto count = std::ranges::size(ids);
-      std::for_each(std::execution::par_unseq, ids.begin(), ids.end(), [=, *this](node_t i) {
+      std::for_each(par_unseq, ids.begin(), ids.end(), [=, *this](node_t i) {
         auto li = i - first;
         auto bl = (li * 2) + first + count;
         auto br = bl + 1;
@@ -202,13 +201,13 @@ struct bvh {
   void compute_force(System<T, N>& system, T theta) {
     node_t nbodies         = system.size;
     constexpr node_t empty = std::numeric_limits<node_t>::max();
-    auto ids                 = system.body_indices();
-    std::for_each(std::execution::par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](node_t i) {
+    auto ids               = system.body_indices();
+    std::for_each(par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](node_t i) {
       auto xs = s.x[i];
 
       node_t tree_index = 0;
-      auto a              = vec<T, N>::splat(0);
-      level_t level      = 0;
+      auto a            = vec<T, N>::splat(0);
+      level_t level     = 0;
 
       // stackless tree traversal
       bool came_forwards = true;
@@ -229,7 +228,7 @@ struct bvh {
             a += mj * (xj - xs) / dist3(xs, xj);
           } else if (level == last_level) {
             // force with other bodies (not with itself)
-            auto f        = [&](auto idx) { a += s.m[idx] * (s.x[idx] - xs) / dist3(xs, s.x[idx]); };
+            auto f      = [&](auto idx) { a += s.m[idx] * (s.x[idx] - xs) / dist3(xs, s.x[idx]); };
             node_t bidx = 2 * (tree_index - nnodes_until_level(last_level));
             if (bidx < nbodies && bidx != i) f(bidx);
             bidx = bidx + 1;
@@ -258,37 +257,82 @@ void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
   saver.save_all(system);
   T theta = arguments.theta;
 
+  // Benchmarking output
+  if (arguments.csv_detailed || arguments.csv_total) {
+    if (arguments.print_state) abort();
+    if (arguments.print_info) abort();
+    if (arguments.save_pos) abort();
+    if (arguments.save_energy) abort();
+    std::cout << "algorithm,dim,precision,nsteps,nbodies,total [s]";
+    if (arguments.csv_detailed) std::cout << ",force [s],accel [s],bbox [s],sort [s],multipoles [s],force approx [s]";
+    std::cout << "\n";
+  }
+
   // Allocate the bvh:
   auto tree = bvh<T, N>::alloc(system);
 
-  for (size_t step = 0; step < arguments.steps; step++) {
-    auto s0 = clock_timer::now();
-    // Sort bodies along Hilbert curve:
-    hilbert_sort(system, bounding_box(std::span{system.x}));
+  auto dt_force      = dur_t(0);
+  auto dt_accel      = dur_t(0);
+  auto dt_bbox       = dur_t(0);
+  auto dt_sort       = dur_t(0);
+  auto dt_multipoles = dur_t(0);
+  auto dt_fapprox    = dur_t(0);
+  auto dt_total      = dur_t(0);
+  if (arguments.csv_detailed) {
+    dt_total = time([&] {
+      for (size_t step = 0; step < arguments.steps; step++) {
+        dt_force += time([&] {
+          // Bounding box
+          aabb<T, N> bbox;
+          dt_bbox += time([&] { bbox = bounding_box(std::span{system.x}); });
 
-    auto s1 = clock_timer::now();
-    // Build the bvh and monopoles:
-    tree.build_tree(system);
+          // Sort bodies along Hilbert curve:
+          dt_sort += time([&] { hilbert_sort(system, bbox); });
 
-    auto s2 = clock_timer::now();
-    // Compute the force on each body using Barnes-Hut:
-    tree.compute_force(system, theta);
+          // Build the bvh and monopoles:
+          dt_multipoles += time([&] { tree.build_tree(system); });
 
-    auto s3 = clock_timer::now();
-    // Apply acceleration
-    system.accelerate_step();
-    auto s4 = clock_timer::now();
+          // Compute the force on each body using Barnes-Hut:
+          dt_fapprox += time([&] { tree.compute_force(system, theta); });
+        });
 
-    if (arguments.print_info) {
-      using dur_t = std::chrono::duration<double, std::milli>;
-      std::cout << std::format("Timings:\n- Sort Bodies {:.2f} ms\n- Build Tree {:.2f} ms\n- Calc force "
-                               "{:.2f} ms\n- Calc acceleration {:.2f} ms",
-                               dur_t(s1 - s0).count(), dur_t(s2 - s1).count(), dur_t(s3 - s2).count(),
-                               dur_t(s4 - s3).count())
-                << std::endl;
-      std::cout << std::format("Total mass: {: .5f}\n", tree.m[0]);
+        // Apply acceleration
+        dt_accel += time([&] { system.accelerate_step(); });
+
+        if (arguments.print_info) std::cout << std::format("Total mass: {: .5f}\n", tree.m[0]);
+        saver.save_all(system);
+      }
+    });
+  } else {
+    dt_total = time([&] {
+      for (size_t step = 0; step < arguments.steps; step++) {
+        // Bounding box
+        aabb<T, N> bbox = bounding_box(std::span{system.x});
+
+        // Sort bodies along Hilbert curve:
+        hilbert_sort(system, bbox);
+
+        // Build the bvh and monopoles:
+        tree.build_tree(system);
+
+        // Compute the force on each body using Barnes-Hut:
+        tree.compute_force(system, theta);
+
+        // Apply acceleration
+        system.accelerate_step();
+      }
+    });
+  }
+
+  if (arguments.csv_detailed || arguments.csv_total) {
+    std::cout << std::format("{},{},{},{},{},{:.2f}", "hilbert-tree", N, sizeof(T) * 8, arguments.steps, system.size,
+                             dt_total.count());
+
+    if (arguments.csv_detailed) {
+      std::cout << std::format(",{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}", dt_force.count(), dt_accel.count(),
+                               dt_bbox.count(), dt_sort.count(), dt_multipoles.count(), dt_fapprox.count());
     }
-    saver.save_all(system);
+    std::cout << "\n";
   }
 
   // Deallocate the bvh:

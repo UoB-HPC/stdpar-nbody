@@ -6,13 +6,12 @@
   #error Must specify spatial dimensions by compiling with -DDIM_SIZE=2 or -DDIM_SIZE=3 .
 #endif
 
-using clock_timer = std::chrono::steady_clock;
-
 #include "all_pairs.h"
 #include "arguments.h"
 #include "barnes_hut.h"
 #include "hilbert_tree.h"
 #include "models.h"
+#include "timer.h"
 
 template <typename T, dim_t N>
 using sim_func_t = std::function<void(System<T, N>&, Arguments)>;
@@ -23,7 +22,7 @@ void run_simulation(Arguments arguments, System<T, N>& system, sim_func_t<T, N> 
     std::cout << "Starting state:" << std::endl;
     system.print();
   }
-  std::cout << "Starting simulation" << std::endl;
+  if (!(arguments.csv_total || arguments.csv_detailed)) std::cout << "Starting simulation" << std::endl;
   auto start = clock_timer::now();
 
   sim_algo(system, arguments);
@@ -34,8 +33,10 @@ void run_simulation(Arguments arguments, System<T, N>& system, sim_func_t<T, N> 
     std::cout << "Final state:" << std::endl;
     system.print();
   }
-  std::cout << std::format("Done simulation\nTotal time: {:.2f} ms\n",
-                           std::chrono::duration<double, std::milli>(end - start).count());
+  if (!(arguments.csv_total || arguments.csv_detailed)) {
+    std::cout << std::format("Done simulation\nTotal time: {:.2f} ms\n",
+                             std::chrono::duration<double, std::milli>(end - start).count());
+  }
 }
 
 template <typename T, dim_t N>
