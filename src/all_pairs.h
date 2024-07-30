@@ -26,14 +26,9 @@ void all_pairs_force(System<T, N>& system) {
 
 template <typename T, dim_t N>
 void all_pairs_collapsed_force(System<T, N>& system) {
-#if !defined(__ACPP__)
+
   auto it = counting_iterator<uint64_t>(0);
   std::for_each_n(par_unseq, it, system.size * system.size, [s = system.state()](auto p) {
-#else
-  static uint64_t* ptr = new uint64_t(0);
-  std::for_each_n(par_unseq, ptr, system.size * system.size, [s = system.state(), ptr = ptr](auto& ref) {
-    auto p = &ref - ptr;
-#endif
     auto j = p / s.sz;
     auto i = p % s.sz;
     if (i == j) {
