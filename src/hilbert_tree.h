@@ -48,7 +48,7 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
   // Workaround: copy everything to a vector of tuples (allocated only once), sort that, then copy things back
   // TODO: sort an array of keys and then apply a permutation in O(N) time and O(1) storage
   // (instead of O(N) time and O(N) storage).
-  static std::vector<std::tuple<uint64_t, vec<T, 3>, T, vec<T, 3>, vec<T, 3>, vec<T, 3>>> tmp(system.size);
+  static std::vector<std::tuple<uint64_t, vec<T, N>, T, vec<T, N>, vec<T, N>, vec<T, N>>> tmp(system.size);
   std::for_each(par_unseq, tmp.begin(), tmp.end(),
                 [tmp = tmp.data(), hid = hilbert_ids.data(), x = system.x.data(), m = system.m.data(),
                  v = system.v.data(), a = system.a.data(), ao = system.ao.data()](auto& e) {
