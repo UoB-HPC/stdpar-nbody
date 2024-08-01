@@ -1,6 +1,7 @@
 #pragma once
 #include <fstream>
 
+#include "format.h"
 #include "arguments.h"
 #include "system.h"
 

@@ -3,6 +3,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include "format.h"
 
 enum class SimulationType {
   Uniform,
@@ -139,7 +140,7 @@ inline auto parse_args(std::vector<std::string>&& args) {
                "--help\t\tDisplay this help message and quit\n");
       exit(EXIT_SUCCESS);
     } else {
-      cout << format("Unknown argument: '{}'\n", args[arg_index]);
+      cout << std::format("Unknown argument: '{}'\n", args[arg_index]);
       exit(EXIT_FAILURE);
     }
   }

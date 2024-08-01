@@ -8,6 +8,7 @@
 #include "saving.h"
 #include "system.h"
 #include "timer.h"
+#include "format.h"
 
 template <typename T, dim_t N>
 void run_barnes_hut(System<T, N>& system, Arguments arguments) {
