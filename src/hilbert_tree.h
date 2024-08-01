@@ -8,6 +8,7 @@
 #include "execution.h"
 #include "saving.h"
 #include "system.h"
+#include "format.h"
 
 using clock_timer = std::chrono::steady_clock;
 

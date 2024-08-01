@@ -9,6 +9,7 @@
 #include "saving.h"
 #include "system.h"
 #include "timer.h"
+#include "format.h"
 
 template <typename T, dim_t N>
 void all_pairs_force(System<T, N>& system) {
