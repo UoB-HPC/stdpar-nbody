@@ -4,7 +4,6 @@ cuda_ver = '12.4'
 gcc_ver = '13'
 llvm_ver = '18'
 cmake_ver = '3.27.0'
-boost_ver = '1.75.0'
 ubuntu_ver = '22.04'
 arch = hpccm.config.get_cpu_architecture()
 
@@ -22,6 +21,7 @@ Stage0 += cmake(eula=True, version=cmake_ver)
 Stage0 += packages(ospackages=[
     'libtbb-dev', 'libnuma-dev', 'numactl', 'git', 'make', 'bc', 'curl', 'nginx', 'build-essential', 'wget',
     'python3', 'python3-pip', 'python-is-python3', 'python3-setuptools', 'python3-dev',
+    'libboost-all-dev', ' libfmt-dev',
 ])
 
 # Setup miscelanous things:
@@ -48,10 +48,40 @@ Stage0 += shell(commands=[
     'pip install numpy matplotlib gdown jupyterlab ipywidgets pandas seaborn conan jupyterlab-nvidia-nsight',
 ])
 
-# Install and configure AdaptiveCpp:
+# Install OneAPI and ROCm on x86_64 builds:
+acpp_flags=''
+if True and arch == 'x86_64':
+    # Install OneAPI:
+    Stage0 += shell(commands=[
+        'set -ex',
+        'mkdir -p /var/tmp',
+        'cd /var/tmp',
+        'wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16695.4/intel-igc-core_1.0.16695.4_amd64.deb',
+        'wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16695.4/intel-igc-opencl_1.0.16695.4_amd64.deb',
+        'wget https://github.com/intel/compute-runtime/releases/download/24.17.29377.6/intel-level-zero-gpu-dbgsym_1.3.29377.6_amd64.ddeb',
+        'wget https://github.com/intel/compute-runtime/releases/download/24.17.29377.6/intel-level-zero-gpu_1.3.29377.6_amd64.deb',
+        'wget https://github.com/intel/compute-runtime/releases/download/24.17.29377.6/intel-opencl-icd-dbgsym_24.17.29377.6_amd64.ddeb',
+        'wget https://github.com/intel/compute-runtime/releases/download/24.17.29377.6/intel-opencl-icd_24.17.29377.6_amd64.deb',
+        'wget https://github.com/intel/compute-runtime/releases/download/24.17.29377.6/libigdgmm12_22.3.19_amd64.deb',
+        'wget https://github.com/oneapi-src/level-zero/releases/download/v1.13.5/level-zero-devel_1.13.5+u22.04_amd64.deb',
+        'wget https://github.com/oneapi-src/level-zero/releases/download/v1.13.5/level-zero_1.13.5+u22.04_amd64.deb',
+        'dpkg -i *.deb',
+        'cd -',
+        'rm -rf /var/tmp',
+    ])
+    # Install ROCm
+    Stage0 += shell(commands=[
+        'set -ex',
+        'wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add -',
+        'echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${ROCM_VERSION}/debian ubuntu main" | tee /etc/apt/sources.list.d/rocm.list',
+        'printf "Package: *\\nPin: release o=repo.radeon.com\\nPin-Priority: 600" | tee /etc/apt/preferences.d/rocm-pin-600',
+        'apt-get update',
+        'apt-get install -y rocm-dev',
+    ])
+    acpp_flags += '-DWITH_ONEAPI_BACKEND=ON -DWITH_ROCM_BACKEND=ON'
+
 # Install and configure AdaptiveCpp:
 if True:
-    Stage0 += boost(version=boost_ver)
     Stage0 += shell(commands=[
         'set -ex',
         # Need this for AdaptiveCpp to find LLVM
@@ -66,3 +96,5 @@ if True:
         'PATH':'$PATH:/opt/adaptivecpp/bin',
         'ACPP_APPDB_DIR': '/src/',
     })
+
+Stage0 += environment(variables={'MPLCONFIGDIR':'/src/.mpl'})

@@ -44,9 +44,9 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
                 });
 
   // Sort the body ids according to the hilbert id
-#if defined(__clang__) || defined(__NVCOMPILER)
+#if defined(__clang__)
   // clang & nvc++ struggle with zip_view
-  // Workaround: copy everything to a vector of tuples (allocated only once), sort that, then copy things back
+  // Workaround for clang: copy everything to a vector of tuples (allocated only once), sort that, then copy things back
   // TODO: sort an array of keys and then apply a permutation in O(N) time and O(1) storage
   // (instead of O(N) time and O(N) storage).
   static std::vector<std::tuple<uint64_t, vec<T, N>, T, vec<T, N>, vec<T, N>, vec<T, N>>> tmp(system.size);
@@ -70,7 +70,12 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
                   a[idx]   = std::get<4>(e);
                   ao[idx]  = std::get<5>(e);
                 });
-
+#elif defined(__NVCOMPILER)
+  // Workaround for nvc++: we can use Thrust zip_iterator, which predates zip_view, but provides the same functionality,
+  // and works just fine:
+  auto b = thrust::make_zip_iterator(hilbert_ids.begin(), system.x.begin(), system.m.begin(), system.v.begin(), system.a.begin(), system.ao.begin());
+  auto e = thrust::make_zip_iterator(hilbert_ids.end(), system.x.end(), system.m.end(), system.v.end(), system.a.end(), system.ao.end());
+  std::sort(par_unseq, b, e, [](auto a, auto b) { return thrust::get<0>(a) < thrust::get<0>(b); });
 #else
   auto r = std::views::zip(hilbert_ids, system.x, system.m, system.v, system.a, system.ao);
   std::sort(par_unseq, r.begin(), r.end(), [](auto a, auto b) { return std::get<0>(a) < std::get<0>(b); });
@@ -141,7 +146,7 @@ struct bvh {
   void build_tree(System<T, N>& system) {
     node_t nbodies = system.size;
     // We build the deepest BVH level from the bodies:
-    {
+     {
       auto ids   = nodes(last_level);
       auto first = ids[0];
       std::for_each(par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](node_t i) {
@@ -276,7 +281,7 @@ void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
   auto dt_accel      = dur_t(0);
   auto dt_bbox       = dur_t(0);
   auto dt_sort       = dur_t(0);
-  auto dt_multipoles = dur_t(0);
+  auto dt_monopoles = dur_t(0);
   auto dt_fapprox    = dur_t(0);
   auto dt_total      = dur_t(0);
   if (arguments.csv_detailed) {
@@ -291,7 +296,7 @@ void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
           dt_sort += time([&] { hilbert_sort(system, bbox); });
 
           // Build the bvh and monopoles:
-          dt_multipoles += time([&] { tree.build_tree(system); });
+          dt_monopoles += time([&] { tree.build_tree(system); });
 
           // Compute the force on each body using Barnes-Hut:
           dt_fapprox += time([&] { tree.compute_force(system, theta); });
@@ -331,7 +336,7 @@ void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
 
     if (arguments.csv_detailed) {
       std::cout << std::format(",{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}", dt_force.count(), dt_accel.count(),
-                               dt_bbox.count(), dt_sort.count(), dt_multipoles.count(), dt_fapprox.count());
+                               dt_bbox.count(), dt_sort.count(), dt_monopoles.count(), dt_fapprox.count());
     }
     std::cout << "\n";
   }

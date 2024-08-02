@@ -36,7 +36,7 @@ void run_barnes_hut(System<T, N>& system, Arguments arguments) {
   auto dt_clear      = dur_t(0);
   auto dt_bbox       = dur_t(0);
   auto dt_insert     = dur_t(0);
-  auto dt_multipoles = dur_t(0);
+  auto dt_monopoles = dur_t(0);
   auto dt_fapprox    = dur_t(0);
   auto dt_total      = dur_t(0);
 
@@ -49,7 +49,7 @@ void run_barnes_hut(System<T, N>& system, Arguments arguments) {
           });
           dt_bbox += time([&] { tree.compute_bounds(system); });
           dt_insert += time([&] { tree.insert(system); });
-          dt_multipoles += time([&] { tree.compute_tree(system); });
+          dt_monopoles += time([&] { tree.compute_tree(system); });
           dt_fapprox += time([&] { tree.compute_force(system, static_cast<T>(arguments.theta)); });
         });
 
@@ -81,7 +81,7 @@ void run_barnes_hut(System<T, N>& system, Arguments arguments) {
 
     if (arguments.csv_detailed) {
       std::cout << std::format(",{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}", dt_force.count(), dt_accel.count(),
-                               dt_clear.count(), dt_bbox.count(), dt_insert.count(), dt_multipoles.count(),
+                               dt_clear.count(), dt_bbox.count(), dt_insert.count(), dt_monopoles.count(),
                                dt_fapprox.count());
     }
     std::cout << "\n";
