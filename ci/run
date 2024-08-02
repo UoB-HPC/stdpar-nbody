@@ -65,7 +65,9 @@ fi
 # Build the binary
 if [ $BUILD = "1" ]; then
   # Build options for all compilers (portable standard compilation options):
-  CXXFLAGS="${CXXFLAGS} -Ofast -DNDEBUG -std=c++23 -mcpu=native -Wall -Wextra -Iinclude -DDIM_SIZE=${DIM} -o ${BIN}"
+  CXXFLAGS="${CXXFLAGS}  -std=c++23  -Wall -Wextra -Iinclude -DDIM_SIZE=${DIM} -o ${BIN}"
+  CXXFLAGS="${CXXFLAGS} -Ofast -DNDEBUG -mcpu=native"
+  #CXXFLAGS="${CXXFLAGS} -O0 -g3"
   case $1 in
     nvgpu)
 	nvc++ ${CXXFLAGS} -stdpar=gpu -gpu=ccnative --diag_suppress no_device_stack src/main.cpp
@@ -92,7 +94,7 @@ fi
 
 # Run the binary:
 if [ $RUN = "1" ]; then
-  SAVE="--save pos"
+  SAVE="--save pos --csv-detailed"
   if [ ! -z $NO_SAVE ]; then
       if [ $NO_SAVE = "1" ]; then
 	  SAVE="--save none --csv-total"
@@ -120,6 +122,6 @@ if [ $RUN = "1" ]; then
   fi
   if [ $PRINT = "1" ]; then
       python3 scripts/plotter.py pos --${3} --gif
-      mv nbody_animation.gif nbody_${2}_${3}_${PREC}.gif
+      mv nbody_animation.gif nbody_d${DIM}_${2}_${3}_${PREC}.gif
   fi
 fi

@@ -53,7 +53,7 @@ void run_all_pairs(System<T, N>& system, Arguments arguments, char const * name,
   saver.save_all(system);
 
   // Benchmarking output
-  if (arguments.csv_detailed || arguments.csv_total) {
+  if (arguments.csv_total) {
     if (arguments.print_state) abort();
     if (arguments.print_info) abort();
     if (arguments.save_pos) abort();

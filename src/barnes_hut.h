@@ -16,7 +16,7 @@ void run_barnes_hut(System<T, N>& system, Arguments arguments) {
   saver.save_all(system);
 
   // Benchmarking output
-  if (arguments.csv_detailed || arguments.csv_total) {
+  if (arguments.csv_total) {
     if (arguments.print_state) abort();
     if (arguments.print_info) abort();
     if (arguments.save_pos) abort();
