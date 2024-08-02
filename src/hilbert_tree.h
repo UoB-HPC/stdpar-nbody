@@ -264,7 +264,7 @@ void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
   T theta = arguments.theta;
 
   // Benchmarking output
-  if (arguments.csv_detailed || arguments.csv_total) {
+  if (arguments.csv_total) {
     if (arguments.print_state) abort();
     if (arguments.print_info) abort();
     if (arguments.save_pos) abort();
