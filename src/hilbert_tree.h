@@ -9,6 +9,7 @@
 #include "saving.h"
 #include "system.h"
 #include "format.h"
+#include "counting_iterator.h"
 
 using clock_timer = std::chrono::steady_clock;
 
@@ -46,29 +47,41 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
   // Sort the body ids according to the hilbert id
 #if defined(__clang__)
   // clang & nvc++ struggle with zip_view
-  // Workaround for clang: copy everything to a vector of tuples (allocated only once), sort that, then copy things back
+  // Workaround for clang: sort pair of (hilbert index, original index), then copy things back
   // TODO: sort an array of keys and then apply a permutation in O(N) time and O(1) storage
   // (instead of O(N) time and O(N) storage).
-  static std::vector<std::tuple<uint64_t, vec<T, N>, T, vec<T, N>, vec<T, N>, vec<T, N>>> tmp(system.size);
-  std::for_each(par_unseq, tmp.begin(), tmp.end(),
-                [tmp = tmp.data(), hid = hilbert_ids.data(), x = system.x.data(), m = system.m.data(),
-                 v = system.v.data(), a = system.a.data(), ao = system.ao.data()](auto& e) {
-                  auto idx = &e - tmp;
-                  e        = std::make_tuple(hid[idx], x[idx], m[idx], v[idx], a[idx], ao[idx]);
+  
+  
+  static std::vector<std::pair<uint64_t, std::size_t>> hilbert_index_map(system.size);
+  std::for_each_n(par_unseq, counting_iterator<std::size_t>(0), system.size,
+                 [hmap=hilbert_index_map.data(), hids = hilbert_ids.data()](std::size_t idx) {
+                  hmap[idx] = std::make_pair(hids[idx], idx);
                 });
   // sort by hilbert id
-  std::sort(par_unseq, tmp.begin(), tmp.end(),
-            [](auto const & a, auto const & b) { return std::get<0>(a) < std::get<0>(b); });
+  std::sort(par_unseq, hilbert_index_map.begin(), hilbert_index_map.end(),
+            [](auto const & a, auto const & b) { return a.first < b.first; });
+
+  // create temp copy of system so that we don't get race conditions when
+  // rearranging values in the next step
+  static std::vector<std::tuple<vec<T, N>, T, vec<T, N>, vec<T, N>, vec<T, N>>> tmp_system(system.size);
+  std::for_each_n(par_unseq, counting_iterator<std::size_t>(0), system.size,
+                 [tmp_sys=tmp_system.data(), x = system.x.data(), m = system.m.data(),
+                  v = system.v.data(), a = system.a.data(), ao = system.ao.data()](std::size_t idx) {
+                  tmp_sys[idx] = std::make_tuple(x[idx], m[idx], v[idx], a[idx], ao[idx]);
+                });
+
+
   // copy back
-  std::for_each(par_unseq, tmp.begin(), tmp.end(),
-                [tmp = tmp.data(), hid = hilbert_ids.data(), x = system.x.data(), m = system.m.data(),
-                 v = system.v.data(), a = system.a.data(), ao = system.ao.data()](auto& e) {
-                  auto idx = &e - tmp;
-                  x[idx]   = std::get<1>(e);
-                  m[idx]   = std::get<2>(e);
-                  v[idx]   = std::get<3>(e);
-                  a[idx]   = std::get<4>(e);
-                  ao[idx]  = std::get<5>(e);
+  std::for_each_n(par_unseq, counting_iterator<std::size_t>(0), system.size,
+                [tmp_sys = tmp_system.data(), hmap = hilbert_index_map.data(), x = system.x.data(),
+                 m = system.m.data(), v = system.v.data(), a = system.a.data(), ao = system.ao.data()](auto idx) {
+                  std::size_t original_index = hmap[idx].second;
+                  auto e = tmp_sys[original_index];
+                  x[idx]   = std::get<0>(e);
+                  m[idx]   = std::get<1>(e);
+                  v[idx]   = std::get<2>(e);
+                  a[idx]   = std::get<3>(e);
+                  ao[idx]  = std::get<4>(e);
                 });
 #elif defined(__NVCOMPILER)
   // Workaround for nvc++: we can use Thrust zip_iterator, which predates zip_view, but provides the same functionality,
