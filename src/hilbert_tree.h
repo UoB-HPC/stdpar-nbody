@@ -196,6 +196,16 @@ struct bvh {
       });
     }
   }
+  
+  static constexpr bool can_approximate(vec<T, N> xs, vec<T, N> xj, aabb<T, N> b, T theta) {
+    auto lengths = b.lengths();
+    T max_length = lengths[0];
+    for(int i = 1; i < N; ++i)
+      if(lengths[i] > max_length)
+        max_length = lengths[i];
+
+    return (max_length * max_length) / dist2(xs, xj)  < theta * theta;
+  }
 
   // Compute the force for each body
   void compute_force(System<T, N>& system, T theta) {
@@ -223,9 +233,6 @@ struct bvh {
           T mj         = m[tree_index];
           if (mj == 0.) {
             // dead node, nothing to do
-          } else if ((dist(xs, xj) / b[tree_index].lengths() < theta).all()) {
-            // below threshold
-            a += mj * (xj - xs) / dist3(xs, xj);
           } else if (level == last_level) {
             // force with other bodies (not with itself)
             auto f      = [&](auto idx) { a += s.m[idx] * (s.x[idx] - xs) / dist3(xs, s.x[idx]); };
@@ -233,6 +240,9 @@ struct bvh {
             if (bidx < nbodies && bidx != i) f(bidx);
             bidx = bidx + 1;
             if (bidx < nbodies && bidx != i) f(bidx);
+          } else if (can_approximate(xs, xj, b[tree_index], theta)) {
+            // below threshold
+            a += mj * (xj - xs) / dist3(xs, xj);
           } else {
             // go to children
             next_node_index = left_child(tree_index, level);
