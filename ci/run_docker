@@ -13,16 +13,30 @@ IMG=barneshut:latest
 # Build container
 hpccm --recipe=ci/recipe.py | docker build -t $IMG -
 
+GPUS=""
+if command nvidia-smi ; then
+    export GPU="nv"
+    GPUS="--gpus=all"
+fi
+if command rocm-smi ; then
+    export GPU="amd"
+    GPUS="--device=/dev/kfd --device=/dev/dri/renderD128 --shm-size 16G --group-add 109"
+fi
+ 
 DOCKER_CMDS="\
        -it \
-       --gpus=all \
-       --privileged \
        -u $(id -u):$(id -g) \
-       -v $(pwd):/src \
        -h $(hostname) \
+       -v $(pwd):/src \
+       -w /src \
+       ${GPUS} \
+       --privileged \
+       --network=host \
+       --cap-add=SYS_PTRACE \
+       --security-opt seccomp=unconfined \
        -e RUN_ONLY:"${RUN_ONLY}" \
        -e BUILD_ONLY:"${BUILD_ONLY}" \
-       -w /src \
+       -e GPU:"${GPU}" \
        $IMG \
 "
 
@@ -46,6 +60,10 @@ case $1 in
     *)
         # Run container:
         docker run $DOCKER_CMDS \
-            bash -c "set -ex && RUN_ONLY=$RUN_ONLY BUILD_ONLY=$BUILD_ONLY ./ci/run $1 $2 $3 $4 $5 $6 $7 $8 $9"
+            bash -c "set -ex && \
+                       GPU=${GPU} \
+                       RUN_ONLY=$RUN_ONLY \
+                       BUILD_ONLY=$BUILD_ONLY \
+                       ./ci/run $1 $2 $3 $4 $5 $6 $7 $8 $9"
         ;;
 esac

@@ -82,6 +82,12 @@ if [ $BUILD = "1" ]; then
 	clang++ ${CXXFLAGS} src/main.cpp -ltbb
 	;;
     acpp)
+	if [ $AMD_GPU = "1" ] ; then
+	    export ACPP_VISIBILITY_MASK="omp;hip"
+	    #export ACPP_DEBUG_LEVEL=3
+	    export HSA_XNACK=1
+	fi
+	acpp-info -l
 	acpp ${CXXFLAGS} --acpp-stdpar src/main.cpp -ltbb
 	;;
     *)
