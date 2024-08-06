@@ -10,8 +10,12 @@ export NO_SAVE=1
 
 fps=(double)
 dims=(3)
-steps=1000
+steps=200
 compilers=(nvgpu nvcpu clang gcc acpp)
+if [ "${GPU}" = "amd" ]; then
+    compilers=(amdclang acpp)
+fi
+
 algorithms=(all-pairs barnes-hut hilbert-tree all-pairs-collapsed)
 
 if [ $BUILD = "1" ]; then
@@ -40,6 +44,11 @@ echo "hostname:$(hostname)"
 
 if [ $GPUS = "1" ]; then
     compilers=(nvgpu acpp)
+    if [ "${GPU}" = "amd" ]; then
+	#compilers=(amdclang acpp)
+	compilers=(acpp)
+	algorithms=(all-pairs all-pairs-collapsed hilbert-tree)
+    fi
 
     # Run for all algorithms
     bodies=(100000)
@@ -58,6 +67,10 @@ if [ $GPUS = "1" ]; then
 
     # Only run large problems for these algorithms:
     algorithms=(barnes-hut hilbert-tree)
+    if [ "${GPU}" = "amd" ]; then
+	algorithms=(hilbert-tree)
+    fi
+
     bodies=(1000000)
     for fp in ${fps[@]}; do
 	for d in ${dims[@]}; do
@@ -74,12 +87,27 @@ if [ $GPUS = "1" ]; then
 fi
 
 if [ $CPUS = "1" ]; then
-    steps=200
     compilers=(nvcpu clang)
 
     # Only run mid sizes on CPUs for algorithms different from all-pairs-collapsed
     algorithms=(all-pairs barnes-hut hilbert-tree all-pairs-collapsed)
     bodies=(100000)
+    for fp in ${fps[@]}; do
+	for d in ${dims[@]}; do
+	    for a in ${algorithms[@]}; do
+		for c in ${compilers[@]}; do
+		    echo "compiler:${c}"
+		    for b in ${bodies[@]}; do
+			RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps}
+		    done
+		done
+	    done
+	done
+    done
+
+    # Only run large problems for these algorithms:
+    algorithms=(barnes-hut hilbert-tree)
+    bodies=(1000000)
     for fp in ${fps[@]}; do
 	for d in ${dims[@]}; do
 	    for a in ${algorithms[@]}; do

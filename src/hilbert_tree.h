@@ -5,11 +5,11 @@
 
 #include "arguments.h"
 #include "atomic_tree.h"
+#include "counting_iterator.h"
 #include "execution.h"
+#include "format.h"
 #include "saving.h"
 #include "system.h"
-#include "format.h"
-#include "counting_iterator.h"
 
 using clock_timer = std::chrono::steady_clock;
 
@@ -45,18 +45,25 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
                 });
 
   // Sort the body ids according to the hilbert id
-#if defined(__clang__)
+#if defined(__NVCOMPILER)
+  // Workaround for nvc++: we can use Thrust zip_iterator, which predates zip_view, but provides the same functionality,
+  // and works just fine:
+  auto b = thrust::make_zip_iterator(hilbert_ids.begin(), system.x.begin(), system.m.begin(), system.v.begin(),
+                                     system.a.begin(), system.ao.begin());
+  auto e = thrust::make_zip_iterator(hilbert_ids.end(), system.x.end(), system.m.end(), system.v.end(), system.a.end(),
+                                     system.ao.end());
+  std::sort(par_unseq, b, e, [](auto a, auto b) { return thrust::get<0>(a) < thrust::get<0>(b); });
+#elif defined(__clang__) || (__cplusplus < 202302L)
   // clang & nvc++ struggle with zip_view
   // Workaround for clang: sort pair of (hilbert index, original index), then copy things back
   // TODO: sort an array of keys and then apply a permutation in O(N) time and O(1) storage
   // (instead of O(N) time and O(N) storage).
-  
-  
+
   static std::vector<std::pair<uint64_t, std::size_t>> hilbert_index_map(system.size);
   std::for_each_n(par_unseq, counting_iterator<std::size_t>(0), system.size,
-                 [hmap=hilbert_index_map.data(), hids = hilbert_ids.data()](std::size_t idx) {
-                  hmap[idx] = std::make_pair(hids[idx], idx);
-                });
+                  [hmap = hilbert_index_map.data(), hids = hilbert_ids.data()](std::size_t idx) {
+                    hmap[idx] = std::make_pair(hids[idx], idx);
+                  });
   // sort by hilbert id
   std::sort(par_unseq, hilbert_index_map.begin(), hilbert_index_map.end(),
             [](auto const & a, auto const & b) { return a.first < b.first; });
@@ -65,30 +72,23 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
   // rearranging values in the next step
   static std::vector<std::tuple<vec<T, N>, T, vec<T, N>, vec<T, N>, vec<T, N>>> tmp_system(system.size);
   std::for_each_n(par_unseq, counting_iterator<std::size_t>(0), system.size,
-                 [tmp_sys=tmp_system.data(), x = system.x.data(), m = system.m.data(),
-                  v = system.v.data(), a = system.a.data(), ao = system.ao.data()](std::size_t idx) {
-                  tmp_sys[idx] = std::make_tuple(x[idx], m[idx], v[idx], a[idx], ao[idx]);
-                });
-
+                  [tmp_sys = tmp_system.data(), x = system.x.data(), m = system.m.data(), v = system.v.data(),
+                   a = system.a.data(), ao = system.ao.data()](std::size_t idx) {
+                    tmp_sys[idx] = std::make_tuple(x[idx], m[idx], v[idx], a[idx], ao[idx]);
+                  });
 
   // copy back
   std::for_each_n(par_unseq, counting_iterator<std::size_t>(0), system.size,
-                [tmp_sys = tmp_system.data(), hmap = hilbert_index_map.data(), x = system.x.data(),
-                 m = system.m.data(), v = system.v.data(), a = system.a.data(), ao = system.ao.data()](auto idx) {
-                  std::size_t original_index = hmap[idx].second;
-                  auto e = tmp_sys[original_index];
-                  x[idx]   = std::get<0>(e);
-                  m[idx]   = std::get<1>(e);
-                  v[idx]   = std::get<2>(e);
-                  a[idx]   = std::get<3>(e);
-                  ao[idx]  = std::get<4>(e);
-                });
-#elif defined(__NVCOMPILER)
-  // Workaround for nvc++: we can use Thrust zip_iterator, which predates zip_view, but provides the same functionality,
-  // and works just fine:
-  auto b = thrust::make_zip_iterator(hilbert_ids.begin(), system.x.begin(), system.m.begin(), system.v.begin(), system.a.begin(), system.ao.begin());
-  auto e = thrust::make_zip_iterator(hilbert_ids.end(), system.x.end(), system.m.end(), system.v.end(), system.a.end(), system.ao.end());
-  std::sort(par_unseq, b, e, [](auto a, auto b) { return thrust::get<0>(a) < thrust::get<0>(b); });
+                  [tmp_sys = tmp_system.data(), hmap = hilbert_index_map.data(), x = system.x.data(),
+                   m = system.m.data(), v = system.v.data(), a = system.a.data(), ao = system.ao.data()](auto idx) {
+                    std::size_t original_index = hmap[idx].second;
+                    auto e = tmp_sys[original_index];
+                    x[idx] = std::get<0>(e);
+                    m[idx] = std::get<1>(e);
+                    v[idx] = std::get<2>(e);
+                    a[idx] = std::get<3>(e);
+                    ao[idx] = std::get<4>(e);
+                  });
 #else
   auto r = std::views::zip(hilbert_ids, system.x, system.m, system.v, system.a, system.ao);
   std::sort(par_unseq, r.begin(), r.end(), [](auto a, auto b) { return std::get<0>(a) < std::get<0>(b); });
@@ -159,7 +159,7 @@ struct bvh {
   void build_tree(System<T, N>& system) {
     node_t nbodies = system.size;
     // We build the deepest BVH level from the bodies:
-     {
+    {
       auto ids   = nodes(last_level);
       auto first = ids[0];
       std::for_each(par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](node_t i) {
@@ -215,15 +215,14 @@ struct bvh {
       });
     }
   }
-  
+
   static constexpr bool can_approximate(vec<T, N> xs, vec<T, N> xj, aabb<T, N> b, T theta) {
     auto lengths = b.lengths();
     T max_length = lengths[0];
-    for(int i = 1; i < N; ++i)
-      if(lengths[i] > max_length)
-        max_length = lengths[i];
+    for (dim_t i = 1; i < N; ++i)
+      if (lengths[i] > max_length) max_length = lengths[i];
 
-    return (max_length * max_length) / dist2(xs, xj)  < theta * theta;
+    return (max_length * max_length) / dist2(xs, xj) < theta * theta;
   }
 
   // Compute the force for each body
@@ -300,13 +299,13 @@ void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
   // Allocate the bvh:
   auto tree = bvh<T, N>::alloc(system);
 
-  auto dt_force      = dur_t(0);
-  auto dt_accel      = dur_t(0);
-  auto dt_bbox       = dur_t(0);
-  auto dt_sort       = dur_t(0);
+  auto dt_force     = dur_t(0);
+  auto dt_accel     = dur_t(0);
+  auto dt_bbox      = dur_t(0);
+  auto dt_sort      = dur_t(0);
   auto dt_monopoles = dur_t(0);
-  auto dt_fapprox    = dur_t(0);
-  auto dt_total      = dur_t(0);
+  auto dt_fapprox   = dur_t(0);
+  auto dt_total     = dur_t(0);
   if (arguments.csv_detailed) {
     dt_total = time([&] {
       for (size_t step = 0; step < arguments.steps; step++) {
@@ -333,24 +332,27 @@ void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
       }
     });
   } else {
+    auto kernels = [&] {
+      // Bounding box
+      aabb<T, N> bbox = bounding_box(std::span{system.x});
+
+      // Sort bodies along Hilbert curve:
+      hilbert_sort(system, bbox);
+
+      // Build the bvh and monopoles:
+      tree.build_tree(system);
+
+      // Compute the force on each body using Barnes-Hut:
+      tree.compute_force(system, theta);
+
+      // Apply acceleration
+      system.accelerate_step();
+    };
+    for (size_t step = 0; step < arguments.warmup_steps; step++) kernels();
     dt_total = time([&] {
-      for (size_t step = 0; step < arguments.steps; step++) {
-        // Bounding box
-        aabb<T, N> bbox = bounding_box(std::span{system.x});
-
-        // Sort bodies along Hilbert curve:
-        hilbert_sort(system, bbox);
-
-        // Build the bvh and monopoles:
-        tree.build_tree(system);
-
-        // Compute the force on each body using Barnes-Hut:
-        tree.compute_force(system, theta);
-
-        // Apply acceleration
-        system.accelerate_step();
-      }
+      for (size_t step = arguments.warmup_steps; step < arguments.steps; step++) kernels();
     });
+    arguments.steps -= arguments.warmup_steps;
   }
 
   if (arguments.csv_detailed || arguments.csv_total) {

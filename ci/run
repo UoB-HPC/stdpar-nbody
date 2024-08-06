@@ -24,7 +24,7 @@ if [ ! -z $4 ]; then
     DIM=$4
 fi
 
-PREC=float
+PREC=double
 if [ ! -z $5 ]; then
     PREC=$5
 fi
@@ -62,10 +62,29 @@ if [ $SEQUENTIAL = "1" ]; then
     CXXFLAGS="-DSEQUENTIAL"
 fi
 
+if [ "$GPU" = "amd" ] ; then
+    export ACPP_VISIBILITY_MASK="omp;hip"
+    #export ACPP_DEBUG_LEVEL=3
+    #export ACPP_STDPAR_PREFETCH_MODE
+    export ACPP_ADAPTIVITY_LEVEL=2
+
+    # MI250: there is no combination of XNACK/interpose-alloc that works.
+    # - XNACK=0 + --hipstdpar-interpose-alloc: everything fails
+    # - XNACK=1: all-pairs works, but hilbert-tree fails with HSA_STATUS_ERROR_MEMORY_APERTURE_VIOLATION
+    export HSA_XNACK=1
+    if [ $1 = "amdclang" ]; then
+	#CXXFLAGS="${CXXFLAGS} --hipstdpar-interpose-alloc"
+	CXXFLAGS="${CXXFLAGS}"
+    fi
+
+    # We do this to collect all-pairs-collapsed results, and test barnes-hut
+    CXXFLAGS="${CXXFLAGS} -DUNSAFE_PAR_UNSEQ"
+fi
+
 # Build the binary
 if [ $BUILD = "1" ]; then
   # Build options for all compilers (portable standard compilation options):
-  CXXFLAGS="${CXXFLAGS}  -std=c++23  -Wall -Wextra -Iinclude -DDIM_SIZE=${DIM} -o ${BIN}"
+  CXXFLAGS="${CXXFLAGS}  -std=c++20  -Wall -Wextra -Iinclude -DDIM_SIZE=${DIM} -o ${BIN}"
   CXXFLAGS="${CXXFLAGS} -Ofast -DNDEBUG -mcpu=native"
   #CXXFLAGS="${CXXFLAGS} -O0 -g3"
   case $1 in
@@ -82,17 +101,16 @@ if [ $BUILD = "1" ]; then
 	clang++ ${CXXFLAGS} src/main.cpp -ltbb
 	;;
     acpp)
-	if [ $AMD_GPU = "1" ] ; then
-	    export ACPP_VISIBILITY_MASK="omp;hip"
-	    #export ACPP_DEBUG_LEVEL=3
-	    export HSA_XNACK=1
-	fi
+	#export ACPP_ADAPTIVITY_LEVEL=2
 	acpp-info -l
 	acpp ${CXXFLAGS} --acpp-stdpar src/main.cpp -ltbb
 	;;
+    amdclang)
+	${AMDCLANG} ${CXXFLAGS} -DUNSAFE_PAR_UNSEQ --hipstdpar --offload-arch=native src/main.cpp -ltbb
+	;;
     *)
 	echo "error: unknown compiler toolchain ${1}"
-	echo "options are: nvgpu, nvcpu, gcc, clang, acpp"
+	echo "options are: nvgpu, nvcpu, gcc, clang, acpp, amdclang"
 	exit 1
 	;;
   esac
@@ -128,6 +146,6 @@ if [ $RUN = "1" ]; then
   fi
   if [ $PRINT = "1" ]; then
       python3 scripts/plotter.py pos --${3} --gif
-      mv nbody_animation.gif nbody_d${DIM}_${2}_${3}_${PREC}.gif
+      mv nbody_animation.gif nbody_d${DIM}_${1}_${2}_${3}_${PREC}.gif
   fi
 fi

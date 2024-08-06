@@ -6,15 +6,15 @@
 #include "atomic.h"
 #include "counting_iterator.h"
 #include "execution.h"
+#include "format.h"
 #include "saving.h"
 #include "system.h"
 #include "timer.h"
-#include "format.h"
 
 template <typename T, dim_t N>
 void all_pairs_force(System<T, N>& system) {
-  auto r = system.body_indices();
-  std::for_each(par_unseq, r.begin(), r.end(), [s = system.state()](auto i) {
+  auto it = counting_iterator<uint64_t>(0);
+  std::for_each_n(par_unseq, it, system.size, [s = system.state()](auto i) {
     auto ai = vec<T, N>::splat(0);
     auto pi = s.x[i];
     for (typename System<T, N>::index_t j = 0; j < s.sz; j++) {
@@ -27,9 +27,8 @@ void all_pairs_force(System<T, N>& system) {
 
 template <typename T, dim_t N>
 void all_pairs_collapsed_force(System<T, N>& system) {
-
   auto it = counting_iterator<uint64_t>(0);
-  std::for_each_n(par_unseq, it, system.size * system.size, [s = system.state()](auto p) {
+  std::for_each_n(par, it, system.size * system.size, [s = system.state()](auto p) {
     auto j = p / s.sz;
     auto i = p % s.sz;
     if (i == j) {
@@ -80,15 +79,19 @@ void run_all_pairs(System<T, N>& system, Arguments arguments, char const * name,
       }
     });
   } else {
+    // all pairs algorithm time step:
+    auto kernels = [&] {
+      // force step
+      f(system);
+      // position update step
+      system.accelerate_step();
+    };
+
+    for (size_t step = 0; step < arguments.warmup_steps; step++) kernels();
     dt_total = time([&] {
-      // all pairs algorithm time step
-      for (size_t step = 0; step < arguments.steps; step++) {
-        // force step
-        f(system);
-        // position update step
-        system.accelerate_step();
-      }
+      for (size_t step = arguments.warmup_steps; step < arguments.steps; step++) kernels();
     });
+    arguments.steps -= arguments.warmup_steps;
   }
 
   if (arguments.csv_detailed || arguments.csv_total) {

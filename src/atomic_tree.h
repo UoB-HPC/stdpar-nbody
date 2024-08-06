@@ -99,7 +99,9 @@ struct atomic_tree {
      [](auto lhs, auto rhs) -> std::tuple<T, T> {
        return {gmin(std::get<0>(lhs), std::get<0>(rhs)), gmax(std::get<1>(lhs), std::get<1>(rhs))};
      },
-     [s = system.state()](auto i) -> std::tuple<T, T> { return {min(s.x[i]), max(s.x[i])}; });
+     [s = system.state()](auto i) -> std::tuple<T, T> {
+       return {min(s.x[i]), max(s.x[i])};
+     });
 
     // adjust boundary
     max_size += 1;
