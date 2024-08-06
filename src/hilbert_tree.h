@@ -235,7 +235,6 @@ struct bvh {
   // Compute the force for each body
   void compute_force(System<T, N>& system, T theta) {
     node_t nbodies         = system.size;
-    constexpr node_t empty = std::numeric_limits<node_t>::max();
     auto ids               = system.body_indices();
     std::for_each(par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](node_t i) {
       auto xs = s.x[i];
