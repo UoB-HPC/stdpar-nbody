@@ -5,7 +5,7 @@ rocm_ver = '6.1.3'
 gcc_ver = '13'
 llvm_ver = '18'
 amd = False
-if amd and rocm_ver = '6.1.3':
+if amd and rocm_ver == '6.1.3':
     # Need to work around lack of support for gcc 13 in rocm-stdpar
     # and different LLVM ABI in LLVM 18 than 18 for AdaptiveCpp.
     gcc_ver = '12'
