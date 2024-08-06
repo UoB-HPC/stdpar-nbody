@@ -1,9 +1,9 @@
 #pragma once
 
-#include "format.h"
 #include <stdexcept>
 
 #include "arguments.h"
+#include "format.h"
 #include "system.h"
 
 template <auto Value, auto Expected>

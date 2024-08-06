@@ -3,6 +3,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+
 #include "format.h"
 
 enum class SimulationType {
@@ -22,6 +23,7 @@ enum class SimulationAlgo {
 struct Arguments {
   std::size_t size                      = 1'000;
   std::size_t steps                     = 1;
+  std::size_t warmup_steps              = 10;
   bool single_precision                 = true;
   SimulationType simulation_type        = SimulationType::Uniform;
   SimulationAlgo simulation_algo        = SimulationAlgo::BarnesHut;

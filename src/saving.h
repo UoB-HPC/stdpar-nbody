@@ -1,8 +1,8 @@
 #pragma once
 #include <fstream>
 
-#include "format.h"
 #include "arguments.h"
+#include "format.h"
 #include "system.h"
 
 template <typename T, dim_t N>

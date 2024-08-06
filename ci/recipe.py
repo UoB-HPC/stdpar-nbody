@@ -1,14 +1,25 @@
 import platform
 nvhpc_ver = '24.5'
 cuda_ver = '12.4'
+rocm_ver = '6.1.3'
 gcc_ver = '13'
 llvm_ver = '18'
+amd = False
+if amd and rocm_ver = '6.1.3':
+    # Need to work around lack of support for gcc 13 in rocm-stdpar
+    # and different LLVM ABI in LLVM 18 than 18 for AdaptiveCpp.
+    gcc_ver = '12'
+    llvm_ver = '17'
 cmake_ver = '3.27.0'
 ubuntu_ver = '22.04'
 arch = hpccm.config.get_cpu_architecture()
 
 # NVIDIA HPC SDK base container image
 img = f'nvcr.io/nvidia/nvhpc:{nvhpc_ver}-devel-cuda{cuda_ver}-ubuntu{ubuntu_ver}'
+nightly=True
+if nightly:
+    img = f'urm.nvidia.com/sw-nvhpc-docker-local/nightly/nvhpc:latest-devel-cuda{cuda_ver}-ubuntu{ubuntu_ver}'
+    nvhpc_ver = 'dev'
 Stage0 += baseimage(image = img)
 
 # Install compilers: GCC, LLVM/Clang...
@@ -73,12 +84,14 @@ if True and arch == 'x86_64':
     Stage0 += shell(commands=[
         'set -ex',
         'wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add -',
-        'echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${ROCM_VERSION}/debian ubuntu main" | tee /etc/apt/sources.list.d/rocm.list',
+        f'echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/{rocm_ver} focal main" | tee /etc/apt/sources.list.d/rocm.list',
         'printf "Package: *\\nPin: release o=repo.radeon.com\\nPin-Priority: 600" | tee /etc/apt/preferences.d/rocm-pin-600',
         'apt-get update',
-        'apt-get install -y rocm-dev',
+        'apt-get install -y rocm-dev rocthrust-dev',
     ])
-    acpp_flags += '-DWITH_OPENCL_BACKEND=ON -DWITH_ROCM_BACKEND=ON'
+    #acpp_flags += '-DWITH_OPENCL_BACKEND=ON'
+    Stage0 += environment(variables={'AMDCLANG': f'/opt/rocm-{rocm_ver}/lib/llvm/bin/clang++'})
+    acpp_flags += '-DWITH_ROCM_BACKEND=ON'
 
 # Install and configure AdaptiveCpp:
 if True:
@@ -87,7 +100,7 @@ if True:
         'git clone -b nbody https://github.com/AdaptiveCpp/AdaptiveCpp',
         'cd AdaptiveCpp',
         'git submodule update --recursive',
-        f'cmake -Bbuild -H.  -DCMAKE_C_COMPILER="$(which clang-{llvm_ver})" -DCMAKE_CXX_COMPILER="$(which clang++-{llvm_ver})" -DCMAKE_INSTALL_PREFIX=/opt/adaptivecpp  -DWITH_CUDA_BACKEND=ON',
+        f'cmake -Bbuild -H.  -DCMAKE_C_COMPILER="$(which clang-{llvm_ver})" -DCMAKE_CXX_COMPILER="$(which clang++-{llvm_ver})" -DCMAKE_INSTALL_PREFIX=/opt/adaptivecpp -DWITH_CUDA_BACKEND=ON {acpp_flags}',
         'cmake --build build --target install -j $(nproc)',
     ])
     Stage0 += environment(variables={

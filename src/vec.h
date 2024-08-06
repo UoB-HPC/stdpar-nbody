@@ -321,9 +321,9 @@ uint64_t hilbert(vec<uint32_t, N> x) {
     for (uint32_t Q = M; Q > 1; Q >>= 1)
       if ((x[n - 1] & Q) != 0) t ^= Q - 1;
     for (uint32_t i = 0; i < n; ++i) x[i] ^= t;
-    
+
     return interleave_bits(x);
-  
+
   } else if constexpr (N == 3) {
     constexpr int32_t n = 2, bits = 21;
     constexpr uint32_t M = 1U << (bits - 1);

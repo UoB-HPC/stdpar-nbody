@@ -5,10 +5,10 @@
 #include "arguments.h"
 #include "atomic_tree.h"
 #include "execution.h"
+#include "format.h"
 #include "saving.h"
 #include "system.h"
 #include "timer.h"
-#include "format.h"
 
 template <typename T, dim_t N>
 void run_barnes_hut(System<T, N>& system, Arguments arguments) {
@@ -31,14 +31,14 @@ void run_barnes_hut(System<T, N>& system, Arguments arguments) {
   auto tree = atomic_tree<T, N>::alloc(system.max_tree_node_size);
   if (arguments.print_info) std::cout << "Tree init complete\n";
 
-  auto dt_force      = dur_t(0);
-  auto dt_accel      = dur_t(0);
-  auto dt_clear      = dur_t(0);
-  auto dt_bbox       = dur_t(0);
-  auto dt_insert     = dur_t(0);
+  auto dt_force     = dur_t(0);
+  auto dt_accel     = dur_t(0);
+  auto dt_clear     = dur_t(0);
+  auto dt_bbox      = dur_t(0);
+  auto dt_insert    = dur_t(0);
   auto dt_monopoles = dur_t(0);
-  auto dt_fapprox    = dur_t(0);
-  auto dt_total      = dur_t(0);
+  auto dt_fapprox   = dur_t(0);
+  auto dt_total     = dur_t(0);
 
   if (arguments.csv_detailed) {
     dt_total = time([&] {
@@ -63,16 +63,19 @@ void run_barnes_hut(System<T, N>& system, Arguments arguments) {
       }
     });
   } else {
+    auto kernels = [&](size_t step) {
+      tree.clear(system, (step == 0) ? tree.capacity : tree.next_free_child_group->load(memory_order_relaxed));
+      tree.compute_bounds(system);
+      tree.insert(system);
+      tree.compute_tree(system);
+      tree.compute_force(system, static_cast<T>(arguments.theta));
+      system.accelerate_step();
+    };
+    for (size_t step = 0; step < arguments.warmup_steps; step++) kernels(step);
     dt_total = time([&] {
-      for (size_t step = 0; step < arguments.steps; step++) {
-        tree.clear(system, (step == 0) ? tree.capacity : tree.next_free_child_group->load(memory_order_relaxed));
-        tree.compute_bounds(system);
-        tree.insert(system);
-        tree.compute_tree(system);
-        tree.compute_force(system, static_cast<T>(arguments.theta));
-        system.accelerate_step();
-      }
+      for (size_t step = arguments.warmup_steps; step < arguments.steps; step++) kernels(step);
     });
+    arguments.steps -= arguments.warmup_steps;
   }
 
   if (arguments.csv_detailed || arguments.csv_total) {
