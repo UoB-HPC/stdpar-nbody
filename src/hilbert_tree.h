@@ -118,6 +118,11 @@ struct bvh {
     return node_t(nnodes_until_level(l - 1) + (o / 2));
   }
 
+  // returns number of leaves contained in a node of the given level.
+  static constexpr auto ncontained_leaves_at_level(level_t l, level_t nlevels) {
+    return 1 << (nlevels - l);
+  }
+
   // The left child of node `n` which is at level `l`:
   static constexpr node_t left_child(node_t n, level_t l) {
     auto first = nnodes_until_level(l);
@@ -133,6 +138,7 @@ struct bvh {
     return std::views::iota((uint32_t)first, (uint32_t)last);
   }
 
+
   // Allocate the bvh:
   static bvh alloc(System<T, N> const & system) {
     // #leafs is the smallest power of two larger than #bodies:
@@ -144,6 +150,7 @@ struct bvh {
     level_t nlevels = std::countr_zero(nleafs);
 
     node_t nnodes = nnodes_until_level(nlevels);
+
     return bvh<T, N>{
      .last_level = nlevels - 1, .b = new aabb<T, N>[nnodes], .m = new T[nnodes], .x = new vec<T, N>[nnodes]};
   }
@@ -237,41 +244,70 @@ struct bvh {
       node_t tree_index = 0;
       auto a            = vec<T, N>::splat(0);
       level_t level     = 0;
+      level_t leaf_level = last_level + 1;
+      // this only refers to levels in the tree, so leaf level is not
+      // included.
+      level_t nlevels   = last_level + 1;
 
       // stackless tree traversal
-      bool came_forwards = true;
-      while (tree_index != empty) {
-        auto next_node = [&](node_t i) {
-          if (i == 0) return empty;  // Back at the root? Done!
-          // If left child, go to right child; otherwise go to parent.
-          return node_t((i - 1) % 2 ? parent(i, level) : i + 1);
+      std::size_t num_covered_particles = 0;
+      while (num_covered_particles < s.sz) {
+        node_t next_node_index = 0;
+        level_t next_level = level;
+
+        auto force_ascend_right = [&]() {
+          next_node_index = parent(tree_index, level) + 1;
+          next_level = level - 1;
         };
-        node_t next_node_index = next_node(tree_index);
-        if (came_forwards) {  // child or sibling node
+
+        auto ascend_right = [&]() {
+          // If left child, go to right child; otherwise go to right uncle.
+          if(node_t((tree_index - 1) % 2)) {
+            force_ascend_right();
+          } else {
+            next_node_index = tree_index + 1;
+          }
+        };
+        // descend right away
+        auto descend_directly = [&]() {
+          next_node_index = left_child(tree_index, level);
+          next_level = level + 1;
+        };
+
+        if (level == leaf_level) {
+          // force with other bodies (not with itself)
+          node_t bidx = tree_index - nnodes_until_level(leaf_level);
+
+          for(int k = 0; k < 2; ++k) {
+            if (bidx < nbodies && bidx != i){
+              vec<T, N> xj = s.x[bidx];
+              T mj         = s.m[bidx];
+
+              a += mj * (xj - xs) / dist3(xs, xj);
+            }
+            ++bidx;
+          }
+          num_covered_particles += 2;
+
+          force_ascend_right();
+        } else {
+
           vec<T, N> xj = x[tree_index];
           T mj         = m[tree_index];
-          if (mj == 0.) {
-            // dead node, nothing to do
-          } else if (level == last_level) {
-            // force with other bodies (not with itself)
-            auto f      = [&](auto idx) { a += s.m[idx] * (s.x[idx] - xs) / dist3(xs, s.x[idx]); };
-            node_t bidx = 2 * (tree_index - nnodes_until_level(last_level));
-            if (bidx < nbodies && bidx != i) f(bidx);
-            bidx = bidx + 1;
-            if (bidx < nbodies && bidx != i) f(bidx);
-          } else if (can_approximate(xs, xj, b[tree_index], theta)) {
+
+          if (can_approximate(xs, xj, b[tree_index], theta)) {
             // below threshold
             a += mj * (xj - xs) / dist3(xs, xj);
+            num_covered_particles += ncontained_leaves_at_level(level, nlevels);
+
+            ascend_right();
           } else {
             // go to children
-            next_node_index = left_child(tree_index, level);
-            level++;
+            descend_directly();
           }
         }
 
-        // Relies on children allocated after their parent
-        came_forwards = next_node_index > tree_index;
-        level         = came_forwards ? level : level - 1;
+        level         = next_level;
         tree_index    = next_node_index;
       }
 
