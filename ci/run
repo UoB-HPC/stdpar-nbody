@@ -79,13 +79,20 @@ if [ "$GPU" = "amd" ] ; then
 
     # We do this to collect all-pairs-collapsed results, and test barnes-hut
     CXXFLAGS="${CXXFLAGS} -DUNSAFE_PAR_UNSEQ"
+elif [ "$GPU" = "intel" ] ; then
+    export ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*"
+    export ACPP_STDPAR_MEM_POOL_SIZE=0
+    # Disable memory pool to prevent entire pool migrating always
+    export ACPP_ADAPTIVITY_LEVEL=2
+
+    CXXFLAGS="${CXXFLAGS}"
 fi
 
 # Build the binary
 if [ $BUILD = "1" ]; then
   # Build options for all compilers (portable standard compilation options):
   CXXFLAGS="${CXXFLAGS}  -std=c++20  -Wall -Wextra -Iinclude -DDIM_SIZE=${DIM} -o ${BIN}"
-  CXXFLAGS="${CXXFLAGS} -Ofast -DNDEBUG -mcpu=native"
+  CXXFLAGS="${CXXFLAGS} -O3 -DNDEBUG -mcpu=native"
   #CXXFLAGS="${CXXFLAGS} -O0 -g3"
   case $1 in
     nvgpu)

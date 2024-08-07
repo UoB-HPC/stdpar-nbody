@@ -2,7 +2,7 @@
 set -ex
 
 GPUS=1
-CPUS=1
+CPUS=0
 BUILD=1
 CASE=galaxy
 export NO_PRINT=1
@@ -14,6 +14,8 @@ steps=200
 compilers=(nvgpu nvcpu clang gcc acpp)
 if [ "${GPU}" = "amd" ]; then
     compilers=(amdclang acpp)
+elif [ "${GPU}" = "intel" ]; then
+    compilers=(acpp)
 fi
 
 algorithms=(all-pairs barnes-hut hilbert-tree all-pairs-collapsed)
@@ -37,6 +39,8 @@ fi
 if command -v nvidia-smi > /dev/null ; then
   # Log which GPU and Driver this run is from
   nvidia-smi --query-gpu=gpu_name,driver_version --format=csv
+elif command -v xpu-smi > /dev/null; then
+  xpu-smi discovery
 fi
 lscpu | grep "Model name"
 lscpu | grep "Core(s) per socket"
@@ -48,6 +52,9 @@ if [ $GPUS = "1" ]; then
 	#compilers=(amdclang acpp)
 	compilers=(acpp)
 	algorithms=(all-pairs all-pairs-collapsed hilbert-tree)
+    elif [ "${GPU}" = "intel" ]; then
+        compilers=(acpp)
+	algorithms=(all-pairs hilbert-tree)
     fi
 
     # Run for all algorithms
@@ -68,6 +75,8 @@ if [ $GPUS = "1" ]; then
     # Only run large problems for these algorithms:
     algorithms=(barnes-hut hilbert-tree)
     if [ "${GPU}" = "amd" ]; then
+	algorithms=(hilbert-tree)
+    elif [ "${GPU}" = "intel"]; then
 	algorithms=(hilbert-tree)
     fi
 
