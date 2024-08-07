@@ -4,8 +4,8 @@ cuda_ver = '12.4'
 rocm_ver = '6.1.3'
 gcc_ver = '13'
 llvm_ver = '18'
-amd = False
-if amd and rocm_ver == '6.1.3':
+gpu = USERARG.get('gpu', 'nv')
+if gpu == 'amd' and rocm_ver == '6.1.3':
     # Need to work around lack of support for gcc 13 in rocm-stdpar
     # and different LLVM ABI in LLVM 18 than 18 for AdaptiveCpp.
     gcc_ver = '12'
@@ -105,3 +105,26 @@ if True:
     })
 
 Stage0 += environment(variables={'MPLCONFIGDIR':'/src/.mpl'})
+
+if False:
+    # Get for performance comparsions: https://github.com/TimThuering/N-Body-Simulation
+    # Comparing a Naive and a Tree-Based N-Body Algorithm using Different Standard SYCL Implementations on Various Hardware
+    # Paper: https://dl.acm.org/doi/10.1145/3624062.3624604
+    Stage0 += shell(commands=[
+        'set -ex',
+        'cd /usr/local',
+        'git clone https://github.com/TimThuering/N-Body-Simulation.git',
+        'cd -',
+    ])
+
+    # Largest NASA dataset from https://ssd.jpl.nasa.gov/tools/sbdb_query.html
+    Stage0 += shell(commands=[
+        'set -ex',
+        'mkdir -p datasets',
+        # Download dataset
+        "curl -s 'https://ssd-api.jpl.nasa.gov/sbdb_query.api?fields=spkid,full_name,pdes,name,prefix,neo,pha,sats,H,G,M1,M2,K1,K2,PC,diameter,extent,albedo,rot_per,GM,BV,UB,IR,spec_B,spec_T,H_sigma,diameter_sigma,orbit_id,epoch,epoch_mjd,epoch_cal,equinox,e,a,q,i,om,w,ma,ad,n,tp,tp_cal,per,per_y,moid,moid_ld,moid_jup,t_jup,sigma_e,sigma_a,sigma_q,sigma_i,sigma_om,sigma_w,sigma_ma,sigma_ad,sigma_n,sigma_tp,sigma_per,class,producer,data_arc,first_obs,last_obs,n_obs_used,n_del_obs_used,n_dop_obs_used,condition_code,rms,two_body,A1,A1_sigma,A2,A2_sigma,A3,A3_sigma,DT,DT_sigma&full-prec=false&sb-kind=a&www=1' -o /datasets/asteroids.json",
+    ])
+    Stage0 += shell(commands=[
+        "jq -r '\\n  (.fields | @csv),\\n  (.data[] | @csv)\\n' /datasets/asteroids.json | tr -d '\"' > /datasets/asteroids.csv",
+        '/usr/local/N-Body-Simulation/dataset_converter/preprocess /datasets/asteroids.csv -o /datasets/sim_asteroids.csv',
+    ])

@@ -10,9 +10,6 @@ set -e
 
 IMG=barneshut:latest
 
-# Build container
-hpccm --recipe=ci/recipe.py | docker build -t $IMG -
-
 GPUS=""
 if command nvidia-smi ; then
     export GPU="nv"
@@ -22,7 +19,15 @@ if command rocm-smi ; then
     export GPU="amd"
     GPUS="--device=/dev/kfd --device=/dev/dri/renderD128 --shm-size 16G --group-add 109"
 fi
- 
+
+if command xpu-smi ; then
+    export GPU="intel"
+    # GPUS=...TODO...
+fi
+
+# Build container
+hpccm --recipe=ci/recipe.py --userarg gpu=$GPU | docker build -t $IMG -
+
 DOCKER_CMDS="\
        -it \
        -u $(id -u):$(id -g) \
