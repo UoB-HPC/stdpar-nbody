@@ -62,11 +62,11 @@ if [ $SEQUENTIAL = "1" ]; then
     CXXFLAGS="-DSEQUENTIAL"
 fi
 
+export ACPP_ADAPTIVITY_LEVEL=2
 if [ "$GPU" = "amd" ] ; then
     export ACPP_VISIBILITY_MASK="omp;hip"
     #export ACPP_DEBUG_LEVEL=3
     #export ACPP_STDPAR_PREFETCH_MODE
-    export ACPP_ADAPTIVITY_LEVEL=2
 
     # MI250: there is no combination of XNACK/interpose-alloc that works.
     # - XNACK=0 + --hipstdpar-interpose-alloc: everything fails
@@ -79,6 +79,20 @@ if [ "$GPU" = "amd" ] ; then
 
     # We do this to collect all-pairs-collapsed results, and test barnes-hut
     CXXFLAGS="${CXXFLAGS} -DUNSAFE_PAR_UNSEQ"
+fi
+
+if [ "$GPU" = "intel" ]; then
+    export ACPP_VISIBILITY_MASK="omp;hip"
+
+    ACPP_STDPAR_MEM_POOL_SIZE=0
+
+    # We do this to collect all-pairs-collapsed results, and test barnes-hut
+    CXXFLAGS="${CXXFLAGS} -DUNSAFE_PAR_UNSEQ"
+fi
+
+NUMA_CMD=""
+if [ $NUMA != "-1" ]; then
+  NUMA_CMD="numactl --cpunodebind=${NUMA} --membind=${NUMA} "
 fi
 
 # Build the binary
@@ -132,7 +146,7 @@ if [ $RUN = "1" ]; then
       PROFILER_CMD="nsys profile --trace=nvtx,cuda,osrt --force-overwrite=true -o report.nsys-rep "
   fi
 
-  OMP_PLACES=cores OMP_PROC_BIND=close $PROFILER_CMD \
+  OMP_PLACES=cores OMP_PROC_BIND=close $PROFILER_CMD $NUMA_CMD \
     ./${BIN} -s $STEPS -n $BODIES ${SAVE} \
     --algorithm ${2} \
     --workload ${3} \

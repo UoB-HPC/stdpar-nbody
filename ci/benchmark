@@ -5,6 +5,9 @@ GPUS=1
 CPUS=1
 BUILD=1
 CASE=galaxy
+#NUMA=-1
+NUMA=0
+
 export NO_PRINT=1
 export NO_SAVE=1
 
@@ -58,7 +61,7 @@ if [ $GPUS = "1" ]; then
 		for c in ${compilers[@]}; do
 		    echo "compiler:${c}"
 		    for b in ${bodies[@]}; do
-			RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps}
+			NUMA=$NUMA RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps}
 		    done
 		done
 	    done
@@ -78,7 +81,7 @@ if [ $GPUS = "1" ]; then
 		for c in ${compilers[@]}; do
 		    echo "compiler:${c}"
 		    for b in ${bodies[@]}; do
-			RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps}
+			NUMA=$NUMA RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps}
 		    done
 		done
 	    done
@@ -98,7 +101,7 @@ if [ $CPUS = "1" ]; then
 		for c in ${compilers[@]}; do
 		    echo "compiler:${c}"
 		    for b in ${bodies[@]}; do
-			RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps}
+			NUMA=$NUMA RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps}
 		    done
 		done
 	    done
@@ -114,7 +117,7 @@ if [ $CPUS = "1" ]; then
 		for c in ${compilers[@]}; do
 		    echo "compiler:${c}"
 		    for b in ${bodies[@]}; do
-			RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps}
+			NUMA=$NUMA RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps}
 		    done
 		done
 	    done
@@ -131,7 +134,7 @@ if [ $CPUS = "1" ]; then
 		for c in ${compilers[@]}; do
 		    echo "compiler:${c}"
 		    for b in ${bodies[@]}; do
-			RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps} 1
+			NUMA=$NUMA RUN_ONLY=1 ./ci/run ${c} ${a} $CASE ${d} ${fp} ${b} ${steps} 1
 		    done
 		done
 	    done

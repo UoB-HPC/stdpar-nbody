@@ -253,12 +253,12 @@ struct bvh {
         node_t next_node_index = 0;
         level_t next_level = level;
 
-        auto force_ascend_right = [&]() {
+        auto force_ascend_right = [&] {
           next_node_index = parent(tree_index, level) + 1;
           next_level = level - 1;
         };
 
-        auto ascend_right = [&]() {
+        auto ascend_right = [&] {
           // If left child, go to right child; otherwise go to right uncle.
           if(node_t((tree_index - 1) % 2)) {
             force_ascend_right();
@@ -267,7 +267,7 @@ struct bvh {
           }
         };
         // descend right away
-        auto descend_directly = [&]() {
+        auto descend_directly = [&] {
           next_node_index = left_child(tree_index, level);
           next_level = level + 1;
         };
