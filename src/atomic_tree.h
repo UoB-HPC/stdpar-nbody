@@ -244,9 +244,10 @@ struct atomic_tree {
         vec<T, N> xj = centre_masses[tree_index];
         // check if below threshold
         auto fc = first_child[tree_index];
-        if (fc == empty || fc == body || side_length / dist(x, xj) < theta) {
+	auto dx = dist(x, xj);
+        if (fc == empty || fc == body || side_length / dx < theta) {
           T mj = total_masses[tree_index];
-          a += mj * (xj - x) / dist3(x, xj);
+          a += mj * (xj - x) / (dx * dx * dx);
         } else {  // visit children
           next_node_index = first_child[tree_index];
           side_length /= static_cast<T>(2);
