@@ -82,9 +82,8 @@ if [ "$GPU" = "amd" ] ; then
 fi
 
 if [ "$GPU" = "intel" ]; then
-    export ACPP_VISIBILITY_MASK="omp;hip"
-
-    ACPP_STDPAR_MEM_POOL_SIZE=0
+    export ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*"
+    export ACPP_STDPAR_MEM_POOL_SIZE=0
 
     # We do this to collect all-pairs-collapsed results, and test barnes-hut
     CXXFLAGS="${CXXFLAGS} -DUNSAFE_PAR_UNSEQ"
