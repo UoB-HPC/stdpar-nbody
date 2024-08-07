@@ -76,7 +76,7 @@ if [ $GPUS = "1" ]; then
     algorithms=(barnes-hut hilbert-tree)
     if [ "${GPU}" = "amd" ]; then
 	algorithms=(hilbert-tree)
-    elif [ "${GPU}" = "intel"]; then
+    elif [ "${GPU}" = "intel" ]; then
 	algorithms=(hilbert-tree)
     fi
 

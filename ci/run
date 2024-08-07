@@ -85,14 +85,19 @@ elif [ "$GPU" = "intel" ] ; then
     # Disable memory pool to prevent entire pool migrating always
     export ACPP_ADAPTIVITY_LEVEL=2
 
+    # Turn on explicit scaling
+    export ZE_FLAT_DEVICE_HIERARCHY=FLAT
+    export ZE_AFFINITY_MASK=0.0
+
     CXXFLAGS="${CXXFLAGS}"
+    #CXXFLAGS="${CXXFLAGS} -DUNSAFE_PAR_UNSEQ"
 fi
 
 # Build the binary
 if [ $BUILD = "1" ]; then
   # Build options for all compilers (portable standard compilation options):
   CXXFLAGS="${CXXFLAGS}  -std=c++20  -Wall -Wextra -Iinclude -DDIM_SIZE=${DIM} -o ${BIN}"
-  CXXFLAGS="${CXXFLAGS} -O3 -DNDEBUG -mcpu=native"
+  CXXFLAGS="${CXXFLAGS} -Ofast -DNDEBUG -mcpu=native"
   #CXXFLAGS="${CXXFLAGS} -O0 -g3"
   case $1 in
     nvgpu)
