@@ -57,7 +57,7 @@ Stage0 += shell(commands=[
 
 # Install Intel OpenCL and ROCm on x86_64 builds:
 acpp_flags=''
-if True and arch == 'x86_64':
+if gpu == 'amd' and arch == 'x86_64':
     # Install Intel OpenCL:
     Stage0 += shell(commands=[
         'set -ex',
