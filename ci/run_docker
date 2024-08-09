@@ -56,7 +56,11 @@ case $1 in
         ;;
     bench_detail)
         # Format the code using the container's clang-format:
-        docker run $DOCKER_CMDS bash -c "set -ex && GPU=${GPU} ./ci/benchmark_detailed 2>&1 | tee out_$(hostname)"
+        docker run $DOCKER_CMDS bash -c "set -ex && GPU=${GPU} ./ci/benchmark_detailed 2>&1 | tee out_detail_$(hostname)"
+        ;;
+    bench_shmoo)
+        # Format the code using the container's clang-format:
+        docker run $DOCKER_CMDS bash -c "set -ex && GPU=${GPU} ./ci/bench_shmoo 2>&1 | tee out_shmoo_$(hostname)"
         ;;
     bench)
         # Format the code using the container's clang-format:
