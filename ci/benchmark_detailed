@@ -11,8 +11,8 @@ export NO_SAVE=2
 fps=(double)
 dims=(3)
 steps=1000
-compilers=(nvgpu clang)
-algorithms=(all-pairs barnes-hut hilbert-tree all-pairs-collapsed)
+compilers=(acpp nvgpu clang)
+algorithms=(barnes-hut hilbert-tree)
 
 if [ $BUILD = "1" ]; then
     # Build all binaries
@@ -39,7 +39,7 @@ lscpu | grep "Core(s) per socket"
 echo "hostname:$(hostname)"
 
 if [ $GPUS = "1" ]; then
-    compilers=(nvgpu)
+    compilers=(acpp nvgpu)
 
     # Run for all algorithms
     bodies=(100000)
