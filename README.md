@@ -1,8 +1,8 @@
-# Barnes-Hut n-body mini-app
+# n-body mini-apps
 
 ![Galaxy collision](./cover_animation.gif)
 
-An implementation of the Barnes-Hut algorithm for n-body simulations using ISO C++ parallel algorithms.
+An implementation of the All-pairs, Barnes-Hut and BVH algorithms for n-body simulations using ISO C++ parallel algorithms.
 
 Two portable execution environments are provided to reproduce:
 - Docker
