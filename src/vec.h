@@ -233,7 +233,7 @@ template <typename T, dim_t N>
 constexpr T dist2(vec<T, N> a, vec<T, N> b) {
   T tmp = T(0.);
   for (dim_t i = 0; i < N; ++i) {
-    T di = std::abs(a[i] - b[i]);
+    T di = a[i] - b[i];
     tmp += di * di;
   }
   return tmp;

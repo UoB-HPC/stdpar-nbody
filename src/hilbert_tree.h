@@ -223,17 +223,18 @@ struct bvh {
     }
   }
 
-  static constexpr bool can_approximate(vec<T, N> xs, vec<T, N> xj, aabb<T, N> b, T theta) {
+  static constexpr bool can_approximate(vec<T, N> xs, vec<T, N> xj, aabb<T, N> b, T theta_squared) {
     auto lengths = b.lengths();
     T max_length = lengths[0];
     for (dim_t i = 1; i < N; ++i)
       if (lengths[i] > max_length) max_length = lengths[i];
 
-    return (max_length * max_length) / dist2(xs, xj) < theta * theta;
+    return (max_length * max_length)  < theta_squared * dist2(xs, xj);
   }
 
   // Compute the force for each body
   void compute_force(System<T, N>& system, T theta) {
+    T theta_squared = theta * theta;
     node_t nbodies         = system.size;
     constexpr node_t empty = std::numeric_limits<node_t>::max();
     auto ids               = system.body_indices();
@@ -294,7 +295,7 @@ struct bvh {
           vec<T, N> xj = x[tree_index];
           T mj         = m[tree_index];
 
-          if (can_approximate(xs, xj, b[tree_index], theta)) {
+          if (can_approximate(xs, xj, b[tree_index], theta_squared)) {
             // below threshold
             a += mj * (xj - xs) / dist3(xs, xj);
             num_covered_particles += ncontained_leaves_at_level(level, nlevels);
