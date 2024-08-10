@@ -101,6 +101,7 @@ struct bvh {
   using level_t = uint32_t;
   level_t last_level;  //< Last level in the tree, i.e., leaf-level - 1 (leaf level is just bodies).
   aabb<T, N>* b;       //< Axis-Aligned Bounding-Boxes
+  T* bw;               //< Bounding-box widths
   T* m;                //< Monopole Masses
   vec<T, N>* x;        //< Monopole Centers of Mass
 
@@ -138,6 +139,14 @@ struct bvh {
     return std::views::iota((uint32_t)first, (uint32_t)last);
   }
 
+  static constexpr T node_width(aabb<T, N> b) {
+    auto l = b.lengths();
+    if constexpr(N == 2) {
+      return std::max(l[0], l[1]);
+    } else {
+      return std::max(std::max(l[0], l[1]), l[2]);
+    }
+  }
 
   // Allocate the bvh:
   static bvh alloc(System<T, N> const & system) {
@@ -151,13 +160,17 @@ struct bvh {
 
     node_t nnodes = nnodes_until_level(nlevels);
 
-    return bvh<T, N>{
-     .last_level = nlevels - 1, .b = new aabb<T, N>[nnodes], .m = new T[nnodes], .x = new vec<T, N>[nnodes]};
+    return bvh<T, N>{.last_level = nlevels - 1,
+                     .b          = new aabb<T, N>[nnodes],
+                     .bw         = new T[nnodes],
+                     .m          = new T[nnodes],
+                     .x          = new vec<T, N>[nnodes]};
   }
 
   // Deallocate the bvh:
   static void dealloc(bvh t) {
     delete[] t.b;
+    delete[] t.bw;
     delete[] t.m;
     delete[] t.x;
   }
@@ -181,12 +194,16 @@ struct bvh {
         if (br >= nbodies) {
           m[i] = s.m[bl];
           x[i] = s.x[bl];
-          b[i] = aabb<T, N>(from_points, s.x[bl]);
+          auto bb = aabb<T, N>(from_points, s.x[bl]);
+          b[i] = bb;
+          bw[i] = node_width(bb);
         } else {
           m[i] = s.m[bl] + s.m[br];
           x[i] = s.m[bl] * s.x[bl] + s.m[br] * s.x[br];
           x[i] /= m[i];
-          b[i] = aabb<T, N>(from_points, s.x[bl], s.x[br]);
+          auto bb = aabb<T, N>(from_points, s.x[bl], s.x[br]);
+          b[i] = bb;
+          bw[i] = node_width(bb);
         }
       });
     }
@@ -213,23 +230,21 @@ struct bvh {
           m[i] = m[bl];
           x[i] = x[bl];
           b[i] = b[bl];
+          bw[i] = bw[bl];
         } else {
           m[i] = m[bl] + m[br];
           x[i] = m[bl] * x[bl] + m[br] * x[br];
           x[i] /= m[i];
-          b[i] = merge(b[bl], b[br]);
+          auto bb = merge(b[bl], b[br]);
+          b[i] = bb;
+          bw[i] = node_width(bb);
         }
       });
     }
   }
 
-  static constexpr bool can_approximate(vec<T, N> xs, vec<T, N> xj, aabb<T, N> b, T theta_squared) {
-    auto lengths = b.lengths();
-    T max_length = lengths[0];
-    for (dim_t i = 1; i < N; ++i)
-      if (lengths[i] > max_length) max_length = lengths[i];
-
-    return (max_length * max_length)  < theta_squared * dist2(xs, xj);
+  static constexpr bool can_approximate(vec<T, N> xs, vec<T, N> xj, T node_width, T theta_squared) {
+    return node_width * node_width  < theta_squared * dist2(xs, xj);
   }
 
   // Compute the force for each body
@@ -295,7 +310,7 @@ struct bvh {
           vec<T, N> xj = x[tree_index];
           T mj         = m[tree_index];
 
-          if (can_approximate(xs, xj, b[tree_index], theta_squared)) {
+          if (can_approximate(xs, xj, bw[tree_index], theta_squared)) {
             // below threshold
             a += mj * (xj - xs) / dist3(xs, xj);
             num_covered_particles += ncontained_leaves_at_level(level, nlevels);
