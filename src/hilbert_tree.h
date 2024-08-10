@@ -102,8 +102,9 @@ struct bvh {
   level_t last_level;  //< Last level in the tree, i.e., leaf-level - 1 (leaf level is just bodies).
   aabb<T, N>* b;       //< Axis-Aligned Bounding-Boxes
   T* bw;               //< Bounding-box widths
-  T* m;                //< Monopole Masses
-  vec<T, N>* x;        //< Monopole Centers of Mass
+
+  using monopole = vec<T,N+1>;
+  monopole* x;        //< Monopole Centers of Mass and mass
 
   // The number of nodes at each level is "2^l" because each tree level is fully refined:
   static constexpr level_t nnodes_at_level(level_t l) { return ipow2(l); }
@@ -148,6 +149,25 @@ struct bvh {
     }
   }
 
+  static constexpr T mass(monopole m) {
+    return m[3];
+  }
+
+  static constexpr vec<T,N> position(monopole m) {
+    vec<T,N> x;
+    for(int i = 0; i < N; ++i)
+      x[i] = m[i];
+    return x;
+  }
+
+  static constexpr monopole make_monopole(T mass, vec<T,N> pos) {
+    monopole m;
+    for(int i = 0; i < N; ++i)
+      m[i] = pos[i];
+    m[N] = mass;
+    return m;
+  }
+
   // Allocate the bvh:
   static bvh alloc(System<T, N> const & system) {
     // #leafs is the smallest power of two larger than #bodies:
@@ -163,15 +183,13 @@ struct bvh {
     return bvh<T, N>{.last_level = nlevels - 1,
                      .b          = new aabb<T, N>[nnodes],
                      .bw         = new T[nnodes],
-                     .m          = new T[nnodes],
-                     .x          = new vec<T, N>[nnodes]};
+                     .x          = new monopole[nnodes]};
   }
 
   // Deallocate the bvh:
   static void dealloc(bvh t) {
     delete[] t.b;
     delete[] t.bw;
-    delete[] t.m;
     delete[] t.x;
   }
 
@@ -187,20 +205,22 @@ struct bvh {
         auto bl = (li * 2);
         auto br = bl + 1;
         if (bl >= nbodies) {
-          m[i] = 0.;  // If the mass of a node is zero, that node is "dead"
+          x[i] = make_monopole(0., vec<T, N>::splat(T(0)));  // If the mass of a node is zero, that node is "dead"
           return;
         }
 
         if (br >= nbodies) {
-          m[i] = s.m[bl];
-          x[i] = s.x[bl];
+          x[i] = make_monopole(s.m[bl], s.x[bl]);
           auto bb = aabb<T, N>(from_points, s.x[bl]);
           b[i] = bb;
           bw[i] = node_width(bb);
         } else {
-          m[i] = s.m[bl] + s.m[br];
-          x[i] = s.m[bl] * s.x[bl] + s.m[br] * s.x[br];
-          x[i] /= m[i];
+          T mass = s.m[bl] + s.m[br];
+
+          vec<T,N> center_of_mass = s.m[bl] * s.x[bl] + s.m[br] * s.x[br];
+          center_of_mass /= mass;
+          x[i] = make_monopole(mass, center_of_mass);
+
           auto bb = aabb<T, N>(from_points, s.x[bl], s.x[br]);
           b[i] = bb;
           bw[i] = node_width(bb);
@@ -218,23 +238,25 @@ struct bvh {
         auto bl = (li * 2) + first + count;
         auto br = bl + 1;
 
-        auto ibl = m[bl] != 0.;
-        auto ibr = m[br] != 0.;
+        auto xl = x[bl];
+        auto xr = x[br];
+
+        auto ibl = mass(xl) != 0.;
+        auto ibr = mass(xr) != 0.;
 
         if (!ibl) {
-          m[i] = 0.;
+          x[i] = xl;
           return;
         }
 
         if (!ibr) {
-          m[i] = m[bl];
-          x[i] = x[bl];
+          x[i] = xl;
           b[i] = b[bl];
           bw[i] = bw[bl];
         } else {
-          m[i] = m[bl] + m[br];
-          x[i] = m[bl] * x[bl] + m[br] * x[br];
-          x[i] /= m[i];
+          T m = mass(xl) + mass(xr);
+          auto pos = (mass(xl) * position(xl) + mass(xr) * position(xr)) / m;
+          x[i] = make_monopole(m, pos);
           auto bb = merge(b[bl], b[br]);
           b[i] = bb;
           bw[i] = node_width(bb);
@@ -307,8 +329,9 @@ struct bvh {
           force_ascend_right();
         } else {
 
-          vec<T, N> xj = x[tree_index];
-          T mj         = m[tree_index];
+          monopole m = x[tree_index];
+          vec<T, N> xj = position(m);
+          T mj         = mass(m);
 
           if (can_approximate(xs, xj, bw[tree_index], theta_squared)) {
             // below threshold
@@ -379,7 +402,7 @@ void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
         // Apply acceleration
         dt_accel += time([&] { system.accelerate_step(); });
 
-        if (arguments.print_info) std::cout << std::format("Total mass: {: .5f}\n", tree.m[0]);
+        if (arguments.print_info) std::cout << std::format("Total mass: {: .5f}\n", tree.mass(tree.x[0]));
         saver.save_all(system);
       }
     });
