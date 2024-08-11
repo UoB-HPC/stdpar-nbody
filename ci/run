@@ -131,6 +131,7 @@ fi
 
 # Run the binary:
 if [ $RUN = "1" ]; then
+  NO_SAVE=1
   SAVE="--save pos --csv-detailed"
   if [ ! -z $NO_SAVE ]; then
       if [ $NO_SAVE = "1" ]; then
@@ -139,16 +140,30 @@ if [ $RUN = "1" ]; then
 	  SAVE="--save none --csv-detailed"
       fi
   fi
+  WORKLOAD="--workload ${3}"
+  if [ "${3}" = "nasa" ]; then
+      #DATASET="sim_asteroids"
+      #DATASET="sim_planets"
+      #DATASET="sim_sbdb_small"
+      DATASET="sim_sbdb_mid"
+      if [ ! -e ${DATASET}.bin ]; then
+	  python3 scripts/thuering_nbody/conv_csv.py ${DATASET}.csv ${DATASET}.bin
+      fi
+      WORKLOAD="--workload load ${DATASET}.bin --theta 0.6"
+      STEPS=25
+  fi
 
   PROFILER_CMD=""
   if [ $PROFILER = "1" ]; then
       PROFILER_CMD="nsys profile --trace=nvtx,cuda,osrt --force-overwrite=true -o report.nsys-rep "
+  elif [ $PROFILER = "2" ]; then
+      PROFILER_CMD="ncu --force-overwrite=true -o report.nsys-rep "
   fi
 
   OMP_PLACES=cores OMP_PROC_BIND=close $PROFILER_CMD $NUMA_CMD \
     ./${BIN} -s $STEPS -n $BODIES ${SAVE} \
     --algorithm ${2} \
-    --workload ${3} \
+    $WORKLOAD \
     --precision ${PREC} #--print-info
 
   PRINT="1"
