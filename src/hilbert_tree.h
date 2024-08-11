@@ -150,7 +150,7 @@ struct bvh {
   }
 
   static constexpr T mass(monopole m) {
-    return m[3];
+    return m[N];
   }
 
   static constexpr vec<T,N> position(monopole m) {
