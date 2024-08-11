@@ -1,0 +1,61 @@
+#!/usr/bin/env sh
+set -ex
+
+BUILD_DIR=thuering_build
+#SRC_DIR=/usr/local/N-Body-Simulation
+SRC_DIR=/src/N-Body-Simulation
+
+case $1 in
+    config)
+	rm -rf $BUILD_DIR || true
+	mkdir -p $BUILD_DIR
+
+	(
+	    cd $BUILD_DIR
+	    cmake $SRC_DIR \
+		  -DCMAKE_PREFIX_PATH="/opt/adaptivecpp" \
+		  -DCMAKE_CXX_COMPILER=acpp \
+		  -DUSE_DPCPP=OFF \
+		  -DCMAKE_BUILD_TYPE=Release \
+		  -DHIPSYCL_TARGETS="generic"
+	)
+	;;
+    build)
+	(
+	    cd $BUILD_DIR
+	    make -j
+	)
+	;;
+    fetch)
+	git clone https://github.com/TimThuering/N-Body-Simulation.git
+	curl -s 'https://ssd-api.jpl.nasa.gov/sbdb_query.api?fields=spkid,full_name,pdes,name,prefix,neo,pha,sats,H,G,M1,M2,K1,K2,PC,diameter,extent,albedo,rot_per,GM,BV,UB,IR,spec_B,spec_T,H_sigma,diameter_sigma,orbit_id,epoch,epoch_mjd,epoch_cal,equinox,e,a,q,i,om,w,ma,ad,n,tp,tp_cal,per,per_y,moid,moid_ld,moid_jup,t_jup,sigma_e,sigma_a,sigma_q,sigma_i,sigma_om,sigma_w,sigma_ma,sigma_ad,sigma_n,sigma_tp,sigma_per,class,producer,data_arc,first_obs,last_obs,n_obs_used,n_del_obs_used,n_dop_obs_used,condition_code,rms,two_body,A1,A1_sigma,A2,A2_sigma,A3,A3_sigma,DT,DT_sigma&full-prec=false&sb-kind=a&www=1' -o asteroids.json
+	jq -r '
+  (.fields | @csv), 
+  (.data[] | @csv)
+' $1 | tr -d '"' > sim_asteroids.json
+	;;
+    preprocess)
+	$BUILD_DIR/dataset_converter/preprocess $2 -o sim_$2
+	;;
+    run)
+	rm -rf output
+	export ACPP_ADAPTIVITY_LEVEL=2
+	export ACPP_VISIBILITY_MASK="cuda"
+	#export ACPP_DEBUG_LEVEL=3
+	#DATASET=/datasets/sim_asteroids.csv
+	#DATASET=/src/sim_asteroids.csv
+	#DATASET=/src/sim_planets.csv
+	#DATASET=/src/sim_sbdb_small.csv
+	DATASET=/src/sim_sbdb_mid.csv
+	./${BUILD_DIR}/N_Body_Simulation \
+	  --file=$DATASET \
+	  --dt=1h --t_end=1d --vs=1h --vs_dir=./output --algorithm=BarnesHut --theta=0.6 --stack_size_param=10
+	;;
+    verify)
+	python3 scripts/thuering_nbody/check_state.py positions.bin $2
+	;;
+    *)
+	echo "unknown option $1"
+	exit 1
+	;;
+esac
