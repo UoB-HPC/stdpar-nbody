@@ -81,12 +81,12 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
                   [tmp_sys = tmp_system.data(), hmap = hilbert_index_map.data(), x = system.x.data(),
                    m = system.m.data(), v = system.v.data(), a = system.a.data(), ao = system.ao.data()](auto idx) {
                     std::size_t original_index = hmap[idx].second;
-                    auto e = tmp_sys[original_index];
-                    x[idx] = std::get<0>(e);
-                    m[idx] = std::get<1>(e);
-                    v[idx] = std::get<2>(e);
-                    a[idx] = std::get<3>(e);
-                    ao[idx] = std::get<4>(e);
+                    auto e                     = tmp_sys[original_index];
+                    x[idx]                     = std::get<0>(e);
+                    m[idx]                     = std::get<1>(e);
+                    v[idx]                     = std::get<2>(e);
+                    a[idx]                     = std::get<3>(e);
+                    ao[idx]                    = std::get<4>(e);
                   });
 #else
   auto r = std::views::zip(hilbert_ids, system.x, system.m, system.v, system.a, system.ao);
@@ -102,8 +102,8 @@ struct bvh {
   aabb<T, N>* b;       //< Axis-Aligned Bounding-Boxes
   T* bw;               //< Bounding-box widths
 
-  using monopole = vec<T,N+1>;
-  monopole* x;        //< Monopole Centers of Mass and mass
+  using monopole = vec<T, N + 1>;
+  monopole* x;  //< Monopole Centers of Mass and mass
 
   // The number of nodes at each level is "2^l" because each tree level is fully refined:
   static constexpr level_t nnodes_at_level(level_t l) { return ipow2(l); }
@@ -120,9 +120,7 @@ struct bvh {
   }
 
   // returns number of leaves contained in a node of the given level.
-  static constexpr auto ncontained_leaves_at_level(level_t l, level_t nlevels) {
-    return 1 << (nlevels - l);
-  }
+  static constexpr auto ncontained_leaves_at_level(level_t l, level_t nlevels) { return 1 << (nlevels - l); }
 
   // The left child of node `n` which is at level `l`:
   static constexpr node_t left_child(node_t n, level_t l) {
@@ -141,28 +139,21 @@ struct bvh {
 
   static constexpr T node_width(aabb<T, N> b) {
     auto l = b.lengths();
-    if constexpr(N == 2) {
-      return std::max(l[0], l[1]);
-    } else {
-      return std::max(std::max(l[0], l[1]), l[2]);
-    }
+    if constexpr (N == 2) return std::max(l[0], l[1]);
+    else return std::max(std::max(l[0], l[1]), l[2]);
   }
 
-  static constexpr T mass(monopole m) {
-    return m[N];
-  }
+  static constexpr T mass(monopole m) { return m[N]; }
 
-  static constexpr vec<T,N> position(monopole m) {
-    vec<T,N> x;
-    for(dim_t i = 0; i < N; ++i)
-      x[i] = m[i];
+  static constexpr vec<T, N> position(monopole m) {
+    vec<T, N> x;
+    for (dim_t i = 0; i < N; ++i) x[i] = m[i];
     return x;
   }
 
-  static constexpr monopole make_monopole(T mass, vec<T,N> pos) {
+  static constexpr monopole make_monopole(T mass, vec<T, N> pos) {
     monopole m;
-    for(dim_t i = 0; i < N; ++i)
-      m[i] = pos[i];
+    for (dim_t i = 0; i < N; ++i) m[i] = pos[i];
     m[N] = mass;
     return m;
   }
@@ -173,7 +164,7 @@ struct bvh {
 
     // #leafs is the smallest power of two larger than #bodies:
     node_t nleafs = std::bit_ceil(system.size);
-    
+
     // #levels is the number of trailing zeros of #leafs plus one.
     // We already have the leaf level built (its just the bodies),
     // so we do not include it here:
@@ -212,20 +203,20 @@ struct bvh {
         }
 
         if (br >= nbodies) {
-          x[i] = make_monopole(s.m[bl], s.x[bl]);
+          x[i]    = make_monopole(s.m[bl], s.x[bl]);
           auto bb = aabb<T, N>(from_points, s.x[bl]);
-          b[i] = bb;
-          bw[i] = node_width(bb);
+          b[i]    = bb;
+          bw[i]   = node_width(bb);
         } else {
           T mass = s.m[bl] + s.m[br];
 
-          vec<T,N> center_of_mass = s.m[bl] * s.x[bl] + s.m[br] * s.x[br];
+          vec<T, N> center_of_mass = s.m[bl] * s.x[bl] + s.m[br] * s.x[br];
           center_of_mass /= mass;
           x[i] = make_monopole(mass, center_of_mass);
 
           auto bb = aabb<T, N>(from_points, s.x[bl], s.x[br]);
-          b[i] = bb;
-          bw[i] = node_width(bb);
+          b[i]    = bb;
+          bw[i]   = node_width(bb);
         }
       });
     }
@@ -252,72 +243,69 @@ struct bvh {
         }
 
         if (!ibr) {
-          x[i] = xl;
-          b[i] = b[bl];
+          x[i]  = xl;
+          b[i]  = b[bl];
           bw[i] = bw[bl];
         } else {
-          T m = mass(xl) + mass(xr);
+          T m      = mass(xl) + mass(xr);
           auto pos = (mass(xl) * position(xl) + mass(xr) * position(xr)) / m;
-          x[i] = make_monopole(m, pos);
-          auto bb = merge(b[bl], b[br]);
-          b[i] = bb;
-          bw[i] = node_width(bb);
+          x[i]     = make_monopole(m, pos);
+          auto bb  = merge(b[bl], b[br]);
+          b[i]     = bb;
+          bw[i]    = node_width(bb);
         }
       });
     }
   }
 
   static constexpr bool can_approximate(vec<T, N> xs, vec<T, N> xj, T node_width, T theta_squared) {
-    return node_width * node_width  < theta_squared * dist2(xs, xj);
+    return node_width * node_width < theta_squared * dist2(xs, xj);
   }
 
   // Compute the force for each body
   void compute_force(System<T, N>& system, T theta) {
     T theta_squared = theta * theta;
-    node_t nbodies         = system.size;
-    auto ids               = system.body_indices();
+    node_t nbodies  = system.size;
+    auto ids        = system.body_indices();
     std::for_each(par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](node_t i) {
       auto xs = s.x[i];
 
-      node_t tree_index = 0;
-      auto a            = vec<T, N>::splat(0);
-      level_t level     = 0;
+      node_t tree_index  = 0;
+      auto a             = vec<T, N>::splat(0);
+      level_t level      = 0;
       level_t leaf_level = last_level + 1;
       // this only refers to levels in the tree, so leaf level is not
       // included.
-      level_t nlevels   = last_level + 1;
+      level_t nlevels = last_level + 1;
 
       // stackless tree traversal
       std::size_t num_covered_particles = 0;
       while (num_covered_particles < s.sz) {
         node_t next_node_index = 0;
-        level_t next_level = level;
+        level_t next_level     = level;
 
         auto force_ascend_right = [&] {
           next_node_index = parent(tree_index, level) + 1;
-          next_level = level - 1;
+          next_level      = level - 1;
         };
 
         auto ascend_right = [&] {
           // If left child, go to right child; otherwise go to right uncle.
-          if(node_t((tree_index - 1) % 2)) {
-            force_ascend_right();
-          } else {
-            next_node_index = tree_index + 1;
-          }
+          if (node_t((tree_index - 1) % 2)) force_ascend_right();
+          else next_node_index = tree_index + 1;
         };
         // descend right away
         auto descend_directly = [&] {
           next_node_index = left_child(tree_index, level);
-          next_level = level + 1;
+          next_level      = level + 1;
         };
 
         if (level == leaf_level) {
           // force with other bodies (not with itself)
           node_t bidx = tree_index - nnodes_until_level(leaf_level);
 
-          for(int k = 0; k < 2; ++k) {
-            if (bidx < nbodies && bidx != i){
+          for (int k = 0; k < 2; ++k) {
+            if (bidx < nbodies && bidx != i) {
               vec<T, N> xj = s.x[bidx];
               T mj         = s.m[bidx];
 
@@ -329,8 +317,7 @@ struct bvh {
 
           force_ascend_right();
         } else {
-
-          monopole m = x[tree_index];
+          monopole m   = x[tree_index];
           vec<T, N> xj = position(m);
           T mj         = mass(m);
 
@@ -346,8 +333,8 @@ struct bvh {
           }
         }
 
-        level         = next_level;
-        tree_index    = next_node_index;
+        level      = next_level;
+        tree_index = next_node_index;
       }
 
       s.a[i] = s.c * a;
