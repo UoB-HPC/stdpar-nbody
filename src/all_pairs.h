@@ -38,6 +38,8 @@ void all_pairs_collapsed_force(System<T, N>& system) {
       return;
     }
 
+    // TODO: we should exploit the symmetry of the force pairs to do
+    // (N^2)/2 computations here by taking this "a" and doing "s.a[j] -= a / mj * mi".
     auto pi = s.x[i];
     auto pj = s.x[j];
     auto a  = s.c * s.m[j] * (pj - pi) / dist3(pi, pj);
