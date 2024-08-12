@@ -35,7 +35,7 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
 
   // Compute the Hilbert index for each body in the Cartesian grid
   auto bids = system.body_indices();
-  static std::vector<uint64_t> hilbert_ids(system.size);
+  static vector<uint64_t> hilbert_ids(system.size);
   std::for_each(par_unseq, bids.begin(), bids.end(),
                 [hids = hilbert_ids.data(), x = system.x.data(), mins = bbox.xmin, grid_cell_size](auto idx) {
                   // Bucket the body into a Cartesian grid cell:
@@ -59,7 +59,7 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
   // TODO: sort an array of keys and then apply a permutation in O(N) time and O(1) storage
   // (instead of O(N) time and O(N) storage).
 
-  static std::vector<std::pair<uint64_t, std::size_t>> hilbert_index_map(system.size);
+  static vector<std::pair<uint64_t, std::size_t>> hilbert_index_map(system.size);
   std::for_each_n(par_unseq, counting_iterator<std::size_t>(0), system.size,
                   [hmap = hilbert_index_map.data(), hids = hilbert_ids.data()](std::size_t idx) {
                     hmap[idx] = std::make_pair(hids[idx], idx);
@@ -70,7 +70,7 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
 
   // create temp copy of system so that we don't get race conditions when
   // rearranging values in the next step
-  static std::vector<std::tuple<vec<T, N>, T, vec<T, N>, vec<T, N>, vec<T, N>>> tmp_system(system.size);
+  static vector<std::tuple<vec<T, N>, T, vec<T, N>, vec<T, N>, vec<T, N>>> tmp_system(system.size);
   std::for_each_n(par_unseq, counting_iterator<std::size_t>(0), system.size,
                   [tmp_sys = tmp_system.data(), x = system.x.data(), m = system.m.data(), v = system.v.data(),
                    a = system.a.data(), ao = system.ao.data()](std::size_t idx) {

@@ -2,7 +2,6 @@
 #include <cmath>
 #include <functional>
 #include <random>
-#include <vector>
 
 #include "alloc.h"
 #include "execution.h"
@@ -16,8 +15,8 @@ class System {
   index_t const max_tree_node_size;
   T const dt;
   T const constant;
-  std::vector<T, allocator<T>> m;
-  std::vector<vec<T, N>, allocator<vec<T, N>>> x, v, a, ao;
+  vector<T> m;
+  vector<vec<T, N>> x, v, a, ao;
 
   // random generation
   std::mt19937 gen{42};  // fix random generation
