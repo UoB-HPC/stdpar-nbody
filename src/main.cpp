@@ -8,9 +8,9 @@
 
 #include "all_pairs.h"
 #include "arguments.h"
-#include "octree.h"
 #include "bvh.h"
 #include "models.h"
+#include "octree.h"
 #include "timer.h"
 
 template <typename T, dim_t N>

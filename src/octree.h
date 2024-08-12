@@ -105,9 +105,7 @@ struct octree {
      [](auto lhs, auto rhs) -> std::tuple<T, T> {
        return {gmin(std::get<0>(lhs), std::get<0>(rhs)), gmax(std::get<1>(lhs), std::get<1>(rhs))};
      },
-     [s = system.state()](auto i) -> std::tuple<T, T> {
-       return {min(s.x[i]), max(s.x[i])};
-     });
+     [s = system.state()](auto i) -> std::tuple<T, T> { return {min(s.x[i]), max(s.x[i])}; });
 
     // adjust boundary
     max_size += 1;
@@ -250,7 +248,7 @@ struct octree {
         vec<T, N> xj = centre_masses[tree_index];
         // check if below threshold
         auto fc = first_child[tree_index];
-	auto dx = dist(x, xj);
+        auto dx = dist(x, xj);
         if (fc == empty || fc == body || side_length / dx < theta) {
           T mj = total_masses[tree_index];
           a += mj * (xj - x) / (dx * dx * dx);
