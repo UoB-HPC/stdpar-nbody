@@ -7,6 +7,7 @@
 #include "counting_iterator.h"
 #include "execution.h"
 #include "format.h"
+#include "monopole.h"
 #include "saving.h"
 #include "system.h"
 
@@ -102,8 +103,7 @@ struct bvh {
   aabb<T, N>* b;       //< Axis-Aligned Bounding-Boxes
   T* bw;               //< Bounding-box widths
 
-  using monopole = vec<T, N + 1>;
-  monopole* x;  //< Monopole Centers of Mass and mass
+  monopole<T, N>* m;  //< Monopole Centers of Mass and mass
 
   // The number of nodes at each level is "2^l" because each tree level is fully refined:
   static constexpr level_t nnodes_at_level(level_t l) { return ipow2(l); }
@@ -143,21 +143,6 @@ struct bvh {
     else return std::max(std::max(l[0], l[1]), l[2]);
   }
 
-  static constexpr T mass(monopole m) { return m[N]; }
-
-  static constexpr vec<T, N> position(monopole m) {
-    vec<T, N> x;
-    for (dim_t i = 0; i < N; ++i) x[i] = m[i];
-    return x;
-  }
-
-  static constexpr monopole make_monopole(T mass, vec<T, N> pos) {
-    monopole m;
-    for (dim_t i = 0; i < N; ++i) m[i] = pos[i];
-    m[N] = mass;
-    return m;
-  }
-
   // Allocate the bvh:
   static bvh alloc(System<T, N> const & system) {
     bvh<T, N> t;
@@ -174,7 +159,7 @@ struct bvh {
     auto nnodes = nnodes_until_level(nlevels);
     ::alloc(t.b, nnodes);
     ::alloc(t.bw, nnodes);
-    ::alloc(t.x, nnodes);
+    ::alloc(t.m, nnodes);
     return t;
   }
 
@@ -183,7 +168,7 @@ struct bvh {
     auto nnodes = nnodes_until_level(t->last_level);
     ::dealloc(t->b, nnodes);
     ::dealloc(t->bw, nnodes);
-    ::dealloc(t->x, nnodes);
+    ::dealloc(t->m, nnodes);
   }
 
   // Build the bvh:
@@ -198,12 +183,12 @@ struct bvh {
         auto bl = (li * 2);
         auto br = bl + 1;
         if (bl >= nbodies) {
-          x[i] = make_monopole(0., vec<T, N>::splat(T(0)));  // If the mass of a node is zero, that node is "dead"
+          m[i] = monopole(T(0.), vec<T, N>::splat(T(0)));  // If the mass of a node is zero, that node is "dead"
           return;
         }
 
         if (br >= nbodies) {
-          x[i]    = make_monopole(s.m[bl], s.x[bl]);
+          m[i]    = monopole(s.m[bl], s.x[bl]);
           auto bb = aabb<T, N>(from_points, s.x[bl]);
           b[i]    = bb;
           bw[i]   = node_width(bb);
@@ -212,7 +197,7 @@ struct bvh {
 
           vec<T, N> center_of_mass = s.m[bl] * s.x[bl] + s.m[br] * s.x[br];
           center_of_mass /= mass;
-          x[i] = make_monopole(mass, center_of_mass);
+          m[i] = monopole(mass, center_of_mass);
 
           auto bb = aabb<T, N>(from_points, s.x[bl], s.x[br]);
           b[i]    = bb;
@@ -231,28 +216,28 @@ struct bvh {
         auto bl = (li * 2) + first + count;
         auto br = bl + 1;
 
-        auto xl = x[bl];
-        auto xr = x[br];
+        auto ml = m[bl];
+        auto mr = m[br];
 
-        auto ibl = mass(xl) != 0.;
-        auto ibr = mass(xr) != 0.;
+        auto ibl = ml.mass() != 0.;
+        auto ibr = mr.mass() != 0.;
 
         if (!ibl) {
-          x[i] = xl;
+          m[i] = ml;
           return;
         }
 
         if (!ibr) {
-          x[i]  = xl;
+          m[i]  = ml;
           b[i]  = b[bl];
           bw[i] = bw[bl];
         } else {
-          T m      = mass(xl) + mass(xr);
-          auto pos = (mass(xl) * position(xl) + mass(xr) * position(xr)) / m;
-          x[i]     = make_monopole(m, pos);
-          auto bb  = merge(b[bl], b[br]);
-          b[i]     = bb;
-          bw[i]    = node_width(bb);
+          T mass  = ml.mass() + mr.mass();
+          auto x  = (ml.mass() * ml.x() + mr.mass() * mr.x()) / mass;
+          m[i]    = monopole(mass, x);
+          auto bb = merge(b[bl], b[br]);
+          b[i]    = bb;
+          bw[i]   = node_width(bb);
         }
       });
     }
@@ -317,10 +302,7 @@ struct bvh {
 
           force_ascend_right();
         } else {
-          monopole m   = x[tree_index];
-          vec<T, N> xj = position(m);
-          T mj         = mass(m);
-
+          auto [mj, xj] = m[tree_index];
           if (can_approximate(xs, xj, bw[tree_index], theta_squared)) {
             // below threshold
             a += mj * (xj - xs) / dist3(xs, xj);
@@ -392,7 +374,7 @@ void run_bvh(System<T, N>& system, Arguments arguments) {
         // Apply acceleration
         dt_accel += time([&] { system.accelerate_step(); });
 
-        if (arguments.print_info) std::cout << std::format("Total mass: {: .5f}\n", tree.mass(tree.x[0]));
+        if (arguments.print_info) std::cout << std::format("Total mass: {: .5f}\n", tree.m[0].mass());
         saver.save_all(system);
       }
     });
