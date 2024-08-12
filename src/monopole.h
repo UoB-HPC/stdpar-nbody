@@ -6,7 +6,8 @@
 
 template <typename T, dim_t N>
 struct monopole {
-  vec<T, N + 1> data{};
+  alignas(N % 2 == 0? alignof(vec<T, N>) : alignof(T) * (N+1)) vec<T, N> x_;
+  T m_;
 
   monopole()                            = default;
   monopole(monopole const &)            = default;
@@ -14,17 +15,14 @@ struct monopole {
   monopole &operator=(monopole const &) = default;
   monopole &operator=(monopole &&)      = default;
 
-  monopole(T mass, vec<T, N> x) {
-    for (dim_t i = 0; i < N; ++i) data[i] = x[i];
-    data[N] = mass;
+  monopole(T m, vec<T, N> x) {
+    for (dim_t i = 0; i < N; ++i) x_[i] = x[i];
+    m_ = m;
   }
-
-  T mass() { return data[N]; }
-  vec<T, N> x() {
-    vec<T, N> x;
-    for (dim_t i = 0; i < N; ++i) x[i] = data[i];
-    return x;
-  }
+  T& mass() { return m_; }
+  T const& mass() const { return m_; }
+  vec<T, N>& x() { return x_; }
+  vec<T, N> const& x() const { return x_; }
 };
 
 namespace std {

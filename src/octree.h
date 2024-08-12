@@ -97,7 +97,7 @@ struct octree {
      [](auto lhs, auto rhs) -> std::tuple<T, T> {
        return {gmin(std::get<0>(lhs), std::get<0>(rhs)), gmax(std::get<1>(lhs), std::get<1>(rhs))};
      },
-     [s = system.state()](auto i) -> std::tuple<T, T> { return {min(s.x[i]), max(s.x[i])}; });
+     [s = system.state()](auto i) -> std::tuple<T, T> { return {min(s.p[i].x()), max(s.p[i].x())}; });
 
     // adjust boundary
     max_size += 1;
@@ -112,7 +112,8 @@ struct octree {
   }
 
   // Inserts body with `mass` at position `pos`:
-  void insert(T mass, vec<T, N> pos) const {
+  void insert(monopole<T, N> p) const {
+    auto pos = p.x();
     Index tree_index = 0;  // insert into root
     vec<T, N> divide = root_x;
     T side_length    = root_side_length;
@@ -140,7 +141,7 @@ struct octree {
       } else if (status == empty && fc.compare_exchange_weak(status, locked, memory_order_acquire)) {
         // If the node is empty and we locked it: insert body, unlock it, and done.
         // compare_exchange_weak suffices: if it fails spuriously, we'll retry again
-        m[tree_index] = monopole(mass, pos);
+        m[tree_index] = p;
         fc.store(body, memory_order_release);
         break;
       } else if (status == body && fc.compare_exchange_weak(status, locked, memory_order_acquire)) {
@@ -177,7 +178,7 @@ struct octree {
   void insert(System<T, N>& system) {
     auto r = system.body_indices();
     std::for_each(par, r.begin(), r.end(),
-                  [s = system.state(), tree = *this](Index i) { tree.insert(s.m[i], s.x[i]); });
+                  [s = system.state(), tree = *this](Index i) { tree.insert(s.p[i]); });
   }
 
   // Computes tree node centroids and masses that depend on the body at the leaf node `i`:
@@ -258,7 +259,7 @@ struct octree {
   void compute_force(System<T, N>& system, T const theta) {
     auto r = system.body_indices();
     std::for_each(par_unseq, r.begin(), r.end(), [s = system.state(), theta, tree = *this](Index i) {
-      s.a[i] = s.c * tree.compute_force(s.x[i], theta);
+      s.a[i] = s.c * tree.compute_force(s.p[i].x(), theta);
     });
   }
 };

@@ -17,7 +17,7 @@ class Saver {
     if (is_save_energy) setup_energy_file();
   }
 
-  auto save_all(System<T, N> const &system) -> void {
+  auto save_all(System<T, N>& system) -> void {
     save_points(system);
     save_energy(system);
   }
@@ -107,10 +107,16 @@ class Saver {
     energy_out_file.write(reinterpret_cast<char const *>(&data_size), sizeof(data_size));
   }
 
-  auto save_points(System<T, N> const &system) -> void {
+  auto save_points(System<T, N>& system) -> void {
     if (!is_save_pos) return;
 
-    pos_out_file.write(reinterpret_cast<char const *>(system.x.data()), simulation_size * data_size * std::uint32_t(N));
+    static vector<vec<T, N>> xs(simulation_size, vec<T, N>::splat(T(0)));
+    auto it = counting_iterator<uint32_t>(0);
+    std::for_each_n(par_unseq, it, simulation_size, [s = system.state(), xs = xs.data()](uint32_t i) {
+      xs[i] = s.p[i].x();
+    });
+
+    pos_out_file.write(reinterpret_cast<char const *>(xs.data()), simulation_size * data_size * std::uint32_t(N));
   }
 
   auto save_energy(System<T, N> const &system) -> void {
