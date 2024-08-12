@@ -18,6 +18,7 @@ void all_pairs_force(System<T, N>& system) {
     auto ai = vec<T, N>::splat(0);
     auto pi = s.x[i];
     for (typename System<T, N>::index_t j = 0; j < s.sz; j++) {
+      if (i == j) continue;
       auto pj = s.x[j];
       ai += s.m[j] * (pj - pi) / dist3(pi, pj);
     }
