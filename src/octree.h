@@ -27,8 +27,7 @@ struct octree {
   mutable atomic<Index>* next_free_child_group;
 
   // Node data:
-  mutable T* total_masses;
-  mutable vec<T, N>* centre_masses;
+  mutable monopole<T, N>* m;
 
   // Helper latch per node for the last thread to proceed to the parent during
   // the tree computation of tree node centroids and masses:
@@ -46,10 +45,7 @@ struct octree {
     ::alloc(qt.first_child, capacity);
     ::alloc(qt.parent, 1 + capacity / child_count<N>);
     ::alloc(qt.next_free_child_group, 1);
-
-    ::alloc(qt.total_masses, capacity);
-    ::alloc(qt.centre_masses, capacity);
-
+    ::alloc(qt.m, capacity);
     ::alloc(qt.child_mass_complete, capacity);
     return qt;
   }
@@ -59,10 +55,7 @@ struct octree {
     dealloc(qt->first_child, qt->capacity);
     dealloc(qt->parent, 1 + qt->capacity / child_count<N>);
     dealloc(qt->next_free_child_group, 1);
-
-    dealloc(qt->total_masses, qt->capacity);
-    dealloc(qt->centre_masses, qt->capacity);
-
+    dealloc(qt->m, qt->capacity);
     dealloc(qt->child_mass_complete, qt->capacity);
   }
 
@@ -83,10 +76,9 @@ struct octree {
   // Resets tree node `i`
   void clear(Index i) const {
     if (i == 0) next_free_child_group->store(1, memory_order_relaxed);
-    first_child[i]   = empty;
-    parent[sg(i)]    = empty;
-    total_masses[i]  = T(0);
-    centre_masses[i] = vec<T, N>::splat(0);
+    first_child[i] = empty;
+    parent[sg(i)]  = empty;
+    m[i]           = monopole(T(0), vec<T, N>::splat(0));
     child_mass_complete[i].store(0, memory_order_relaxed);
   }
 
@@ -148,8 +140,7 @@ struct octree {
       } else if (status == empty && fc.compare_exchange_weak(status, locked, memory_order_acquire)) {
         // If the node is empty and we locked it: insert body, unlock it, and done.
         // compare_exchange_weak suffices: if it fails spuriously, we'll retry again
-        total_masses[tree_index]  = mass;
-        centre_masses[tree_index] = pos;
+        m[tree_index] = monopole(mass, pos);
         fc.store(body, memory_order_release);
         break;
       } else if (status == body && fc.compare_exchange_weak(status, locked, memory_order_acquire)) {
@@ -162,17 +153,16 @@ struct octree {
         parent[sg(first_child_index)] = tree_index;
 
         // evict body at current index and insert into children keeping node locked
-        auto p_x        = centre_masses[tree_index];
+        auto [p_m, p_x] = m[tree_index];
         Index child_pos = 0;
         Index level     = 1;
         for (dim_t i = 0; i < N; i++) {
           child_pos += level * (p_x[i] > divide[i]);
           level *= 2;
         }
-        Index evicted_index          = first_child_index + child_pos;
-        centre_masses[evicted_index] = p_x;
-        total_masses[evicted_index]  = total_masses[tree_index];
-        first_child[evicted_index]   = body;
+        Index evicted_index        = first_child_index + child_pos;
+        m[evicted_index]           = monopole(p_m, p_x);
+        first_child[evicted_index] = body;
 
         // release node and continue to try to insert body
         fc.store(first_child_index, memory_order_release);
@@ -216,15 +206,14 @@ struct octree {
       T m    = 0;
       auto x = vec<T, N>::splat(0);
       for (dim_t i = 0; i < child_count<N>; i++) {
-        auto child_index      = first_child[tree_index] + i;
-        auto child_total_mass = total_masses[child_index];
-        m += child_total_mass;
-        x += child_total_mass * centre_masses[child_index];
+        auto child_index        = first_child[tree_index] + i;
+        auto [child_m, child_x] = this->m[child_index];
+        m += child_m;
+        x += child_m * child_x;
       }
       x /= m;
 
-      total_masses[tree_index]  = m;
-      centre_masses[tree_index] = x;
+      this->m[tree_index] = monopole(m, x);
     } while (true);
   }
 
@@ -245,12 +234,11 @@ struct octree {
     while (tree_index != empty) {
       Index next_node_index = next_node(tree_index);
       if (came_forwards) {  // child or sibling node
-        vec<T, N> xj = centre_masses[tree_index];
+        auto [mj, xj] = m[tree_index];
         // check if below threshold
         auto fc = first_child[tree_index];
         auto dx = dist(x, xj);
         if (fc == empty || fc == body || side_length / dx < theta) {
-          T mj = total_masses[tree_index];
           a += mj * (xj - x) / (dx * dx * dx);
         } else {  // visit children
           next_node_index = first_child[tree_index];
@@ -324,7 +312,7 @@ void run_octree(System<T, N>& system, Arguments arguments) {
 
         if (arguments.print_info) {
           std::cout << std::format("Tree size: {}\n", tree.next_free_child_group->load());
-          std::cout << std::format("Total mass: {: .5f}\n", tree.total_masses[0]);
+          std::cout << std::format("Total mass: {: .5f}\n", tree.m[0].mass());
         }
         saver.save_all(system);
       }

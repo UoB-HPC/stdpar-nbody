@@ -16,10 +16,6 @@ arch = hpccm.config.get_cpu_architecture()
 
 # NVIDIA HPC SDK base container image
 img = f'nvcr.io/nvidia/nvhpc:{nvhpc_ver}-devel-cuda{cuda_ver}-ubuntu{ubuntu_ver}'
-nightly = True
-if nightly:
-    img = f'urm.nvidia.com/sw-nvhpc-docker-local/nightly/nvhpc:latest-devel-cuda{cuda_ver}-ubuntu{ubuntu_ver}'
-    nvhpc_ver = 'dev'
 Stage0 += baseimage(image = img)
 
 # Install compilers: GCC, LLVM/Clang...
