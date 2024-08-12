@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <vector>
 
 template <typename T>
 void alloc(T*& ptr, std::size_t n) {
@@ -50,3 +51,6 @@ template <typename T, typename U>
 constexpr bool operator!=(allocator<T> const &, allocator<U> const &) noexcept {
   return false;
 }
+
+template <typename T>
+using vector = std::vector<T, allocator<T>>;
