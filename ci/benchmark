@@ -14,14 +14,14 @@ export NO_SAVE=1
 fps=(double)
 dims=(3)
 steps=200
-compilers=(nvgpu nvcpu clang gcc acpp)
+compilers=(acpp clang gcc nvgpu nvcpu)
 if [ "${GPU}" = "amd" ]; then
     compilers=(amdclang acpp)
 elif [ "${GPU}" = "intel" ]; then
     compilers=(acpp)
 fi
 
-algorithms=(all-pairs barnes-hut hilbert-tree all-pairs-collapsed)
+algorithms=(all-pairs octree bvh all-pairs-collapsed)
 
 if [ $BUILD = "1" ]; then
     # Build all binaries
@@ -54,10 +54,10 @@ if [ $GPUS = "1" ]; then
     if [ "${GPU}" = "amd" ]; then
 	#compilers=(amdclang acpp)
 	compilers=(acpp)
-	algorithms=(all-pairs all-pairs-collapsed hilbert-tree)
+	algorithms=(all-pairs all-pairs-collapsed bvh)
     elif [ "${GPU}" = "intel" ]; then
         compilers=(acpp)
-	algorithms=(all-pairs hilbert-tree)
+	algorithms=(all-pairs bvh)
     fi
 
     # Run for all algorithms
@@ -76,11 +76,11 @@ if [ $GPUS = "1" ]; then
     done
 
     # Only run large problems for these algorithms:
-    algorithms=(barnes-hut hilbert-tree)
+    algorithms=(octree bvh)
     if [ "${GPU}" = "amd" ]; then
-	algorithms=(hilbert-tree)
+	algorithms=(bvh)
     elif [ "${GPU}" = "intel" ]; then
-	algorithms=(hilbert-tree)
+	algorithms=(bvh)
     fi
 
     bodies=(1000000)
@@ -102,7 +102,7 @@ if [ $CPUS = "1" ]; then
     compilers=(nvcpu clang)
 
     # Only run mid sizes on CPUs for algorithms different from all-pairs-collapsed
-    algorithms=(all-pairs barnes-hut hilbert-tree all-pairs-collapsed)
+    algorithms=(all-pairs octree bvh all-pairs-collapsed)
     bodies=(100000)
     for fp in ${fps[@]}; do
 	for d in ${dims[@]}; do
@@ -118,7 +118,7 @@ if [ $CPUS = "1" ]; then
     done
 
     # Only run large problems for these algorithms:
-    algorithms=(barnes-hut hilbert-tree)
+    algorithms=(octree bvh)
     bodies=(1000000)
     for fp in ${fps[@]}; do
 	for d in ${dims[@]}; do
@@ -135,7 +135,7 @@ if [ $CPUS = "1" ]; then
 
     # Only run small sizes sequentially
     bodies=(10000)
-    algorithms=(all-pairs barnes-hut hilbert-tree all-pairs-collapsed)
+    algorithms=(all-pairs octree bvh all-pairs-collapsed)
     echo "sequential:1"
     for fp in ${fps[@]}; do
 	for d in ${dims[@]}; do
@@ -150,3 +150,4 @@ if [ $CPUS = "1" ]; then
 	done
     done
 fi
+

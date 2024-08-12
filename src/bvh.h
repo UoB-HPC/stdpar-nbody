@@ -4,7 +4,6 @@
 #include <ranges>
 
 #include "arguments.h"
-#include "atomic_tree.h"
 #include "counting_iterator.h"
 #include "execution.h"
 #include "format.h"
@@ -155,14 +154,14 @@ struct bvh {
 
   static constexpr vec<T,N> position(monopole m) {
     vec<T,N> x;
-    for(int i = 0; i < N; ++i)
+    for(dim_t i = 0; i < N; ++i)
       x[i] = m[i];
     return x;
   }
 
   static constexpr monopole make_monopole(T mass, vec<T,N> pos) {
     monopole m;
-    for(int i = 0; i < N; ++i)
+    for(dim_t i = 0; i < N; ++i)
       m[i] = pos[i];
     m[N] = mass;
     return m;
@@ -170,27 +169,30 @@ struct bvh {
 
   // Allocate the bvh:
   static bvh alloc(System<T, N> const & system) {
+    bvh<T, N> t;
+
     // #leafs is the smallest power of two larger than #bodies:
     node_t nleafs = std::bit_ceil(system.size);
-
+    
     // #levels is the number of trailing zeros of #leafs plus one.
     // We already have the leaf level built (its just the bodies),
     // so we do not include it here:
-    level_t nlevels = std::countr_zero(nleafs);
+    auto nlevels = std::countr_zero(nleafs);
+    t.last_level = nlevels - 1;
 
-    node_t nnodes = nnodes_until_level(nlevels);
-
-    return bvh<T, N>{.last_level = nlevels - 1,
-                     .b          = new aabb<T, N>[nnodes],
-                     .bw         = new T[nnodes],
-                     .x          = new monopole[nnodes]};
+    auto nnodes = nnodes_until_level(nlevels);
+    ::alloc(t.b, nnodes);
+    ::alloc(t.bw, nnodes);
+    ::alloc(t.x, nnodes);
+    return t;
   }
 
   // Deallocate the bvh:
-  static void dealloc(bvh t) {
-    delete[] t.b;
-    delete[] t.bw;
-    delete[] t.x;
+  static void dealloc(bvh* t) {
+    auto nnodes = nnodes_until_level(t->last_level);
+    ::dealloc(t->b, nnodes);
+    ::dealloc(t->bw, nnodes);
+    ::dealloc(t->x, nnodes);
   }
 
   // Build the bvh:
@@ -354,7 +356,7 @@ struct bvh {
 };
 
 template <typename T, dim_t N>
-void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
+void run_bvh(System<T, N>& system, Arguments arguments) {
   Saver<T, N> saver(arguments);
   saver.save_all(system);
   T theta = arguments.theta;
@@ -365,6 +367,8 @@ void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
     if (arguments.print_info) abort();
     if (arguments.save_pos) abort();
     if (arguments.save_energy) abort();
+  }
+  if (arguments.csv_total || arguments.csv_detailed) {
     std::cout << "algorithm,dim,precision,nsteps,nbodies,total [s]";
     if (arguments.csv_detailed) std::cout << ",force [s],accel [s],bbox [s],sort [s],multipoles [s],force approx [s]";
     std::cout << "\n";
@@ -430,7 +434,7 @@ void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
   }
 
   if (arguments.csv_detailed || arguments.csv_total) {
-    std::cout << std::format("{},{},{},{},{},{:.2f}", "hilbert-tree", N, sizeof(T) * 8, arguments.steps, system.size,
+    std::cout << std::format("{},{},{},{},{},{:.2f}", "bvh", N, sizeof(T) * 8, arguments.steps, system.size,
                              dt_total.count());
 
     if (arguments.csv_detailed) {
@@ -441,5 +445,5 @@ void run_hilbert_binary_tree(System<T, N>& system, Arguments arguments) {
   }
 
   // Deallocate the bvh:
-  bvh<T, N>::dealloc(tree);
+  bvh<T, N>::dealloc(&tree);
 }

@@ -1,15 +1,21 @@
 #pragma once
 
+#include <algorithm>
 #include <cassert>
+#include <ranges>
 #include <vector>
 
 #include "alloc.h"
+#include "arguments.h"
 #include "atomic.h"
 #include "execution.h"
+#include "format.h"
+#include "saving.h"
 #include "system.h"
+#include "timer.h"
 
 template <typename T, dim_t N, typename Index = std::uint32_t>
-struct atomic_tree {
+struct octree {
   Index capacity;  //< Tree node capacity
   // Bounding box:
   T root_side_length;
@@ -34,8 +40,8 @@ struct atomic_tree {
   static constexpr Index locked = body - 1;                           //< Being modified by another thread
 
   // Allocates tree with capacity to hold `capacity` nodes:
-  static atomic_tree alloc(size_t capacity) {
-    atomic_tree qt;
+  static octree alloc(size_t capacity) {
+    octree qt;
     qt.capacity = capacity;
     ::alloc(qt.first_child, capacity);
     ::alloc(qt.parent, 1 + capacity / child_count<N>);
@@ -49,7 +55,7 @@ struct atomic_tree {
   }
 
   // Deallocates the tree
-  static void dealloc(atomic_tree* qt) {
+  static void dealloc(octree* qt) {
     dealloc(qt->first_child, qt->capacity);
     dealloc(qt->parent, 1 + qt->capacity / child_count<N>);
     dealloc(qt->next_free_child_group, 1);
@@ -270,3 +276,86 @@ struct atomic_tree {
     });
   }
 };
+
+template <typename T, dim_t N>
+void run_octree(System<T, N>& system, Arguments arguments) {
+  Saver<T, N> saver(arguments);
+  saver.save_all(system);
+
+  // Benchmarking output
+  if (arguments.csv_total) {
+    if (arguments.print_state) abort();
+    if (arguments.print_info) abort();
+    if (arguments.save_pos) abort();
+    if (arguments.save_energy) abort();
+  }
+  if (arguments.csv_total || arguments.csv_detailed) {
+    std::cout << "algorithm,dim,precision,nsteps,nbodies,total [s]";
+    if (arguments.csv_detailed)
+      std::cout << ",force [s],accel [s],clear [s],bbox [s],insert [s],multipoles [s],force approx [s]";
+    std::cout << "\n";
+  }
+
+  // init tree structure
+  auto tree = octree<T, N>::alloc(system.max_tree_node_size);
+  if (arguments.print_info) std::cout << "Tree init complete\n";
+
+  auto dt_force     = dur_t(0);
+  auto dt_accel     = dur_t(0);
+  auto dt_clear     = dur_t(0);
+  auto dt_bbox      = dur_t(0);
+  auto dt_insert    = dur_t(0);
+  auto dt_monopoles = dur_t(0);
+  auto dt_fapprox   = dur_t(0);
+  auto dt_total     = dur_t(0);
+
+  if (arguments.csv_detailed) {
+    dt_total = time([&] {
+      for (size_t step = 0; step < arguments.steps; step++) {
+        dt_force += time([&] {
+          dt_clear += time([&] {
+            tree.clear(system, (step == 0) ? tree.capacity : tree.next_free_child_group->load(memory_order_relaxed));
+          });
+          dt_bbox += time([&] { tree.compute_bounds(system); });
+          dt_insert += time([&] { tree.insert(system); });
+          dt_monopoles += time([&] { tree.compute_tree(system); });
+          dt_fapprox += time([&] { tree.compute_force(system, static_cast<T>(arguments.theta)); });
+        });
+
+        dt_accel += time([&] { system.accelerate_step(); });
+
+        if (arguments.print_info) {
+          std::cout << std::format("Tree size: {}\n", tree.next_free_child_group->load());
+          std::cout << std::format("Total mass: {: .5f}\n", tree.total_masses[0]);
+        }
+        saver.save_all(system);
+      }
+    });
+  } else {
+    auto kernels = [&](size_t step) {
+      tree.clear(system, (step == 0) ? tree.capacity : tree.next_free_child_group->load(memory_order_relaxed));
+      tree.compute_bounds(system);
+      tree.insert(system);
+      tree.compute_tree(system);
+      tree.compute_force(system, static_cast<T>(arguments.theta));
+      system.accelerate_step();
+    };
+    for (size_t step = 0; step < arguments.warmup_steps; step++) kernels(step);
+    dt_total = time([&] {
+      for (size_t step = arguments.warmup_steps; step < arguments.steps; step++) kernels(step);
+    });
+    arguments.steps -= arguments.warmup_steps;
+  }
+
+  if (arguments.csv_detailed || arguments.csv_total) {
+    std::cout << std::format("{},{},{},{},{},{:.2f}", "octree", N, sizeof(T) * 8, arguments.steps, system.size,
+                             dt_total.count());
+
+    if (arguments.csv_detailed) {
+      std::cout << std::format(",{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}", dt_force.count(), dt_accel.count(),
+                               dt_clear.count(), dt_bbox.count(), dt_insert.count(), dt_monopoles.count(),
+                               dt_fapprox.count());
+    }
+    std::cout << "\n";
+  }
+}

@@ -1,67 +1,86 @@
-# n-body mini-apps
+# ISO C++ Parallel Algorithms for n-body simulations on multi-core CPUs and GPUs
 
 ![Galaxy collision](./cover_animation.gif)
 
-An implementation of the All-pairs, Barnes-Hut and BVH algorithms for n-body simulations using ISO C++ parallel algorithms.
+This repository provides multiple parallel n-body simulation algorithms, implemented in portable ISO C++ that runs on multi-core CPUs and GPUs:
+- All-Pairs; $O(N^2)$ time complexity:
+  * Classic `all-pair`, parallelized over bodies.
+  * `all-pairs-collapsed`, parallelized over force pairs.
+- Barnes-Hut ; $O(N \log N)$ time complexity:
+  * Starvation-free `octree` algorithm: requires _parallel forward progress_.
+  * Hilbert-sorted Bounding Volume Hierarchy (`bvh`) algorithm: requires _weakly parallel forward progress_.
+  
+# Reproducing results
 
-Two portable execution environments are provided to reproduce:
-- Docker
-- Mamba
-
-## Running with docker
-
-Pre-requisites: `docker` installed.
-Install [HPCCM](https://github.com/NVIDIA/hpc-container-maker):
+Pre-requisites: `docker` and [HPCCM](https://github.com/NVIDIA/hpc-container-maker):
 
 ```shell
 $ pip install hpccm
 ```
 
-Then you can run the samples using:
+Run samples as follows:
 
 ```shell
 # Options
-# ./ci/run_docker <toolchain> <algorithm> <workload case> <dim> <precision>
-# Example: nvc++ gpu compiler, barnes-hut algorithm, galaxy simulation, 3D, double precision:
-$ ./ci/run_docker nvgpu barnes-hut galaxy 3 double
-# If you only want to build the binary, you can use:
-$ BUILD_ONLY=1 ./ci/run nvgpu barnes-hut galaxy 3 double
-# If you only want to run the binary after building it, you can use:
-$ RUN_ONLY=1 ./ci/run nvgpu barnes-hut galaxy 3 double
+# ./ci/run_docker <toolchain> <algorithm> <workload case> <dim> <precision> <bodies> <steps>
+# Example: nvc++ gpu compiler, octree algorithm, galaxy simulation, 3D, double precision:
+$ ./ci/run_docker nvgpu octree galaxy 3 double
+# Build, but not run:
+$ BUILD_ONLY=1 ./ci/run_docker nvgpu octree galaxy 3 double
+# Run assuming binary is built:
+$ RUN_ONLY=1 ./ci/run_docker nvgpu octree galaxy 3 double
 ```
+
+To reproduce without a container, a properly set up environment is required, in which case the `./ci/run` script can be used instead.
 
 Following options available:
 
-- Toolchain: `nvgpu` (`nvc++ -stdpar=gpu`), `nvcpu` (`nvc++ -stdpar=cpu`), `gcc` (Intel TBB), `clang` (Intel TBB), `acpp` ([AdaptiveCpp](https://github.com/AdaptiveCpp/AdaptiveCpp)).
-- Algorithm: `all-pairs`, `all-pairs-collapsed`, `barnes-hut`.
+- Toolchain:
+  * Open-source vendor-neutral: `acpp` ([AdaptiveCpp](https://github.com/AdaptiveCpp/AdaptiveCpp)), `gcc` (Intel TBB), `clang` (Intel TBB), 
+  * Vendor-specific: 
+    - AMD ROCm stdpar: `amdclang`.
+	- NVIDIA HPC SDK: `nvgpu` (`nvc++ -stdpar=gpu`), `nvcpu` (`nvc++ -stdpar=cpu`).
+	- Intel oneAPI: `dpc++`
+- Algorithm: `all-pairs`, `all-pairs-collapsed`, `octree`, `bvh`.
 - Dimensions: `2` (2D), `3` (3D).
 - Precision: `float`, `double`.
+- Workloads:
+  * `galaxy`
+  * `nasa`: loads data-set from file, requires using `./ci/run_docker thuering fetch` for set up.
 
-When contributing code, you can format your contributions as follows:
+To run all benchmarks on a given systems, you can use `./ci/run_docker bench`.
+
+# License
+
+MIT License, see [LICENSE](./LICENSE).
+
+# Contributing code
+
+When contributing code, you may format your contributions as follows:
 
 ```shell
 $ ./ci/run_docker fmt
 ```
 
-## Running with mamba
+but doing this is not required.
 
-### Installing
+# Reproducing with mamba
+
+## Installing
 
 The environment is made portable through mamba/conda.
-This must be installed as a prerequisite
-e.g. run the Miniforge installer from https://github.com/conda-forge/miniforge.
-Then create the `stdpar-bh` environment:
+This must be installed as a prerequisite, e.g., run the Miniforge installer from https://github.com/conda-forge/miniforge .
+Then create the `stdpar-nbody` environment:
 ```bash
 $ mamba env create -f environment.yaml
 ```
-<!-- `mamba env export --from-history --name stdpar-bh` -->
+<!-- `mamba env export --from-history --name stdpar-nbody` -->
 
 Other things you might want:
 - NVIDIA HPC SDK
 <!--- Intel oneAPI Base Toolkit-->
 
-
-### Building
+## Building
 Use `make` to build the program.
 This must be done within the mamba environment:
 ```bash
@@ -94,7 +113,7 @@ If you get an error about missing libraries then try running with the following 
 LD_LIBRARY_PATH=${CONDA_PREFIX}/lib ./nbody_d2_clang -s 5 -n 1000000
 ```
 
-### Examples
+## Examples
 Run Barnes-Hut with $\theta=0$ and compare with all pairs algorithm.
 Run 5 steps with 10 bodies.
 They should have the same output.

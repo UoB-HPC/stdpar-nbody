@@ -56,5 +56,5 @@ with open(args.out_file, 'r') as f:
             compiler = l.split(':')[1].strip()
         elif l.startswith('hostname') or l.startswith('node'):
             hostname = l.split(':')[1].strip().replace('.nvidia.com', '')
-        elif l.split(',')[0] in ['barnes-hut','all-pairs','all-pairs-collapsed','hilbert-tree']:
+        elif l.split(',')[0] in ['octree','all-pairs','all-pairs-collapsed','bvh']:
             print(f'{gpu},{driver},{cpu},{cores},{sequential},{compiler},{hostname},{l.strip()}')
