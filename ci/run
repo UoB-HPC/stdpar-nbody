@@ -143,7 +143,6 @@ fi
 
 # Run the binary:
 if [ $RUN = "1" ]; then
-  NO_SAVE=1
   SAVE="--save pos --csv-detailed"
   if [ ! -z $NO_SAVE ]; then
       if [ $NO_SAVE = "1" ]; then
