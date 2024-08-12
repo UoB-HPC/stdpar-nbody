@@ -4,10 +4,10 @@
 # ./run <toolchain> <algorithm> <workload case> <dim> <precision> <bodies> <steps> <sequential> <profiler>
 #
 # Examples:
-# ./run nvgpu galaxy barnes-hut
+# ./run nvgpu galaxy octree
 # ./run nvgpu solar all-pairs 2 double
-# BUILD=1 ./run nvgpu galaxy barnes-hut
-# RUN=1 ./run nvgpu galaxy barnes-hut
+# BUILD=1 ./run nvgpu galaxy octree
+# RUN=1 ./run nvgpu galaxy octree
 set -ex
 BODIES=100000
 if [ ! -z $6 ]; then
@@ -70,14 +70,14 @@ if [ "$GPU" = "amd" ] ; then
 
     # MI250: there is no combination of XNACK/interpose-alloc that works.
     # - XNACK=0 + --hipstdpar-interpose-alloc: everything fails
-    # - XNACK=1: all-pairs works, but hilbert-tree fails with HSA_STATUS_ERROR_MEMORY_APERTURE_VIOLATION
+    # - XNACK=1: all-pairs works, but bvh fails with HSA_STATUS_ERROR_MEMORY_APERTURE_VIOLATION
     export HSA_XNACK=1
     if [ $1 = "amdclang" ]; then
 	#CXXFLAGS="${CXXFLAGS} --hipstdpar-interpose-alloc"
 	CXXFLAGS="${CXXFLAGS}"
     fi
 
-    # We do this to collect all-pairs-collapsed results, and test barnes-hut
+    # We do this to collect all-pairs-collapsed results, and test octree
     CXXFLAGS="${CXXFLAGS} -DUNSAFE_PAR_UNSEQ"
 elif [ "$GPU" = "intel" ] ; then
     export ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*"
@@ -97,7 +97,7 @@ if [ "$GPU" = "intel" ]; then
     export ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*"
     export ACPP_STDPAR_MEM_POOL_SIZE=0
 
-    # We do this to collect all-pairs-collapsed results, and test barnes-hut
+    # We do this to collect all-pairs-collapsed results, and test octree
     CXXFLAGS="${CXXFLAGS} -DUNSAFE_PAR_UNSEQ"
 fi
 
@@ -143,7 +143,6 @@ fi
 
 # Run the binary:
 if [ $RUN = "1" ]; then
-  NO_SAVE=1
   SAVE="--save pos --csv-detailed"
   if [ ! -z $NO_SAVE ]; then
       if [ $NO_SAVE = "1" ]; then

@@ -53,6 +53,14 @@ Stage0 += shell(commands=[
     # Install required python packages for the notebooks
     'pip install --upgrade pip',
     'pip install numpy matplotlib gdown jupyterlab ipywidgets pandas seaborn conan jupyterlab-nvidia-nsight',
+
+    # NVTX3 for profiling
+    'mkdir -p /var/tmp',
+    'cd /var/tmp',
+    'git clone --depth=1 --branch=release-v3 https://github.com/NVIDIA/NVTX.git',
+    'cp -r NVTX/c/include/nvtx3 /usr/include/nvtx3',
+    'rm -rf NVTX',
+    'cd -',
 ])
 
 # Install Intel OpenCL and ROCm on x86_64 builds:
@@ -105,10 +113,3 @@ if True:
     })
 
 Stage0 += environment(variables={'MPLCONFIGDIR':'/src/.mpl'})
-
-Stage0 += shell(commands=[
-    'git clone --depth=1 --branch=release-v3 https://github.com/NVIDIA/NVTX.git',
-    'cp -r NVTX/c/include/nvtx3 /usr/include/nvtx3',
-    'rm -rf NVTX',
-    'cd -',
-])

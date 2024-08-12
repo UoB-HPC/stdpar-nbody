@@ -16,8 +16,8 @@ enum class SimulationType {
 enum class SimulationAlgo {
   AllPairs,
   AllPairsCollapsed,
-  BarnesHut,
-  HilbertTree,
+  Octree,
+  BVH,
 };
 
 struct Arguments {
@@ -26,7 +26,7 @@ struct Arguments {
   std::size_t warmup_steps              = 10;
   bool single_precision                 = true;
   SimulationType simulation_type        = SimulationType::Uniform;
-  SimulationAlgo simulation_algo        = SimulationAlgo::BarnesHut;
+  SimulationAlgo simulation_algo        = SimulationAlgo::Octree;
   bool print_state                      = false;
   bool print_info                       = false;
   double theta                          = 0.5;
@@ -75,13 +75,13 @@ inline auto parse_args(std::vector<std::string>&& args) {
         arguments.simulation_algo = SimulationAlgo::AllPairs;
       } else if (args[arg_index] == "all-pairs-collapsed") {
         arguments.simulation_algo = SimulationAlgo::AllPairsCollapsed;
-      } else if (args[arg_index] == "barnes-hut") {
-        arguments.simulation_algo = SimulationAlgo::BarnesHut;
-      } else if (args[arg_index] == "hilbert-tree") {
-        arguments.simulation_algo = SimulationAlgo::HilbertTree;
+      } else if (args[arg_index] == "octree") {
+        arguments.simulation_algo = SimulationAlgo::Octree;
+      } else if (args[arg_index] == "bvh") {
+        arguments.simulation_algo = SimulationAlgo::BVH;
       } else {
         cerr << "Unknown algorithm: \"" << args[arg_index] << "\"." << endl;
-        cerr << "Options are: all-pairs, all-pairs-collapsed, barnes-hut (default)." << endl;
+        cerr << "Options are: all-pairs, all-pairs-collapsed, octree (default)." << endl;
         exit(EXIT_FAILURE);
       }
     } else if (args[arg_index] == "--workload") {
@@ -126,11 +126,11 @@ inline auto parse_args(std::vector<std::string>&& args) {
       cout << ("Help:\n"
                "-n size\t\tNumber of particles to simulate\n"
                "-s steps\t\tNumber of steps to run simulation for\n"
-               "--theta t\t\tTheta threshold parameter to use in Barnes-Hut\n"
+               "--theta t\t\tTheta threshold parameter to use in Octree\n"
                "--precision double|float(default)\t\tSelects floating-point "
                "precision\n"
                "--algorithm "
-               "all-pairs|all-pairs-collapsed|barnes-hut(default)<algo>"
+               "all-pairs|all-pairs-collapsed|bvh|octree(default)<algo>"
                "\t\tSelects simulation algorithm\n"
                "--workload plummer|galaxy|uniform(default)|load "
                "<file.bin>\t\tSelects workload\n"
