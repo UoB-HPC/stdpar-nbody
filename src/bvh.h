@@ -15,10 +15,10 @@ using clock_timer = std::chrono::steady_clock;
 
 /// Computes the bounding box of the grid.
 template <typename T, dim_t N>
-aabb<T, N> bounding_box(std::span<vec<T, N>> xs) {
+aabb<T, N> bounding_box(std::span<monopole<T, N>> ms) {
   return std::transform_reduce(
-   par_unseq, xs.begin(), xs.end(), aabb<T, N>(from_points, vec<T, N>::splat(0.)),
-   [](auto a, auto b) { return merge(a, b); }, [](auto a) { return aabb<T, N>(from_points, a); });
+   par_unseq, ms.begin(), ms.end(), aabb<T, N>(from_points, vec<T, N>::splat(0.)),
+   [](auto a, auto b) { return merge(a, b); }, [](auto a) { return aabb<T, N>(from_points, a.x()); });
 }
 
 /// Sorts bodies along the Hilbert curve.
@@ -37,9 +37,9 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
   auto bids = system.body_indices();
   static vector<uint64_t> hilbert_ids(system.size);
   std::for_each(par_unseq, bids.begin(), bids.end(),
-                [hids = hilbert_ids.data(), x = system.x.data(), mins = bbox.xmin, grid_cell_size](auto idx) {
+                [hids = hilbert_ids.data(), p = system.p.data(), mins = bbox.xmin, grid_cell_size](auto idx) {
                   // Bucket the body into a Cartesian grid cell:
-                  vec<uint32_t, N> cell_idx = cast<uint32_t>((x[idx] - mins) / grid_cell_size);
+                  vec<uint32_t, N> cell_idx = cast<uint32_t>((p[idx].x() - mins) / grid_cell_size);
                   // Compute the Hilber index of the cell and assign it to the body:
                   hids[idx] = hilbert(cell_idx);
                 });
@@ -48,9 +48,9 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
 #if defined(__NVCOMPILER)
   // Workaround for nvc++: we can use Thrust zip_iterator, which predates zip_view, but provides the same functionality,
   // and works just fine:
-  auto b = thrust::make_zip_iterator(hilbert_ids.begin(), system.x.begin(), system.m.begin(), system.v.begin(),
+  auto b = thrust::make_zip_iterator(hilbert_ids.begin(), system.p.begin(), system.v.begin(),
                                      system.a.begin(), system.ao.begin());
-  auto e = thrust::make_zip_iterator(hilbert_ids.end(), system.x.end(), system.m.end(), system.v.end(), system.a.end(),
+  auto e = thrust::make_zip_iterator(hilbert_ids.end(), system.p.end(), system.v.end(), system.a.end(),
                                      system.ao.end());
   std::sort(par_unseq, b, e, [](auto a, auto b) { return thrust::get<0>(a) < thrust::get<0>(b); });
 #elif defined(__clang__) || (__cplusplus < 202302L)
@@ -70,27 +70,26 @@ void hilbert_sort(System<T, N>& system, aabb<T, N> bbox) {
 
   // create temp copy of system so that we don't get race conditions when
   // rearranging values in the next step
-  static vector<std::tuple<vec<T, N>, T, vec<T, N>, vec<T, N>, vec<T, N>>> tmp_system(system.size);
+  static vector<std::tuple<monopole<T, N>, vec<T, N>, vec<T, N>, vec<T, N>>> tmp_system(system.size);
   std::for_each_n(par_unseq, counting_iterator<std::size_t>(0), system.size,
-                  [tmp_sys = tmp_system.data(), x = system.x.data(), m = system.m.data(), v = system.v.data(),
+                  [tmp_sys = tmp_system.data(), p = system.p.data(), v = system.v.data(),
                    a = system.a.data(), ao = system.ao.data()](std::size_t idx) {
-                    tmp_sys[idx] = std::make_tuple(x[idx], m[idx], v[idx], a[idx], ao[idx]);
+                    tmp_sys[idx] = std::make_tuple(p[idx], v[idx], a[idx], ao[idx]);
                   });
 
   // copy back
   std::for_each_n(par_unseq, counting_iterator<std::size_t>(0), system.size,
-                  [tmp_sys = tmp_system.data(), hmap = hilbert_index_map.data(), x = system.x.data(),
-                   m = system.m.data(), v = system.v.data(), a = system.a.data(), ao = system.ao.data()](auto idx) {
+                  [tmp_sys = tmp_system.data(), hmap = hilbert_index_map.data(), p = system.p.data(),
+		   v = system.v.data(), a = system.a.data(), ao = system.ao.data()](auto idx) {
                     std::size_t original_index = hmap[idx].second;
                     auto e                     = tmp_sys[original_index];
-                    x[idx]                     = std::get<0>(e);
-                    m[idx]                     = std::get<1>(e);
-                    v[idx]                     = std::get<2>(e);
-                    a[idx]                     = std::get<3>(e);
-                    ao[idx]                    = std::get<4>(e);
+                    p[idx]                     = std::get<0>(e);
+                    v[idx]                     = std::get<1>(e);
+                    a[idx]                     = std::get<2>(e);
+                    ao[idx]                    = std::get<3>(e);
                   });
 #else
-  auto r = std::views::zip(hilbert_ids, system.x, system.m, system.v, system.a, system.ao);
+  auto r = std::views::zip(hilbert_ids, system.p, system.v, system.a, system.ao);
   std::sort(par_unseq, r.begin(), r.end(), [](auto a, auto b) { return std::get<0>(a) < std::get<0>(b); });
 #endif
 }
@@ -188,18 +187,21 @@ struct bvh {
         }
 
         if (br >= nbodies) {
-          m[i]    = monopole(s.m[bl], s.x[bl]);
-          auto bb = aabb<T, N>(from_points, s.x[bl]);
+	  auto [ml, xl] = s.p[bl];
+          m[i]    = monopole(ml, xl);
+          auto bb = aabb<T, N>(from_points, xl);
           b[i]    = bb;
           bw[i]   = node_width(bb);
         } else {
-          T mass = s.m[bl] + s.m[br];
+	  auto [ml, xl] = s.p[bl];
+	  auto [mr, xr] = s.p[br];
+          T mass = ml + mr;
 
-          vec<T, N> center_of_mass = s.m[bl] * s.x[bl] + s.m[br] * s.x[br];
+          vec<T, N> center_of_mass = ml * xl + mr * xr;
           center_of_mass /= mass;
           m[i] = monopole(mass, center_of_mass);
 
-          auto bb = aabb<T, N>(from_points, s.x[bl], s.x[br]);
+          auto bb = aabb<T, N>(from_points, xl, xr);
           b[i]    = bb;
           bw[i]   = node_width(bb);
         }
@@ -216,24 +218,24 @@ struct bvh {
         auto bl = (li * 2) + first + count;
         auto br = bl + 1;
 
-        auto ml = m[bl];
-        auto mr = m[br];
+        auto [ml, xl] = m[bl];
+        auto [mr, xr] = m[br];
 
-        auto ibl = ml.mass() != 0.;
-        auto ibr = mr.mass() != 0.;
+        auto ibl = ml != 0.;
+        auto ibr = mr != 0.;
 
         if (!ibl) {
-          m[i] = ml;
+          m[i] = m[bl];
           return;
         }
 
         if (!ibr) {
-          m[i]  = ml;
+          m[i]  = m[bl];
           b[i]  = b[bl];
           bw[i] = bw[bl];
         } else {
-          T mass  = ml.mass() + mr.mass();
-          auto x  = (ml.mass() * ml.x() + mr.mass() * mr.x()) / mass;
+          T mass  = ml + mr;
+          auto x  = (ml * xl + mr * xr) / mass;
           m[i]    = monopole(mass, x);
           auto bb = merge(b[bl], b[br]);
           b[i]    = bb;
@@ -253,7 +255,7 @@ struct bvh {
     node_t nbodies  = system.size;
     auto ids        = system.body_indices();
     std::for_each(par_unseq, ids.begin(), ids.end(), [=, s = system.state(), *this](node_t i) {
-      auto xs = s.x[i];
+      auto [mi, xi] = s.p[i];
 
       node_t tree_index  = 0;
       auto a             = vec<T, N>::splat(0);
@@ -291,10 +293,8 @@ struct bvh {
 
           for (int k = 0; k < 2; ++k) {
             if (bidx < nbodies && bidx != i) {
-              vec<T, N> xj = s.x[bidx];
-              T mj         = s.m[bidx];
-
-              a += mj * (xj - xs) / dist3(xs, xj);
+              auto [mj, xj] = s.p[bidx];
+              a += mj * (xj - xi) / dist3(xi, xj);
             }
             ++bidx;
           }
@@ -303,9 +303,9 @@ struct bvh {
           force_ascend_right();
         } else {
           auto [mj, xj] = m[tree_index];
-          if (can_approximate(xs, xj, bw[tree_index], theta_squared)) {
+          if (can_approximate(xi, xj, bw[tree_index], theta_squared)) {
             // below threshold
-            a += mj * (xj - xs) / dist3(xs, xj);
+            a += mj * (xj - xi) / dist3(xi, xj);
             num_covered_particles += ncontained_leaves_at_level(level, nlevels);
 
             ascend_right();
@@ -359,7 +359,7 @@ void run_bvh(System<T, N>& system, Arguments arguments) {
         dt_force += time([&] {
           // Bounding box
           aabb<T, N> bbox;
-          dt_bbox += time([&] { bbox = bounding_box(std::span{system.x}); });
+          dt_bbox += time([&] { bbox = bounding_box(std::span{system.p}); });
 
           // Sort bodies along Hilbert curve:
           dt_sort += time([&] { hilbert_sort(system, bbox); });
@@ -381,7 +381,7 @@ void run_bvh(System<T, N>& system, Arguments arguments) {
   } else {
     auto kernels = [&] {
       // Bounding box
-      aabb<T, N> bbox = bounding_box(std::span{system.x});
+      aabb<T, N> bbox = bounding_box(std::span{system.p});
 
       // Sort bodies along Hilbert curve:
       hilbert_sort(system, bbox);

@@ -16,11 +16,11 @@ void all_pairs_force(System<T, N>& system) {
   auto it = counting_iterator<uint64_t>(0);
   std::for_each_n(par_unseq, it, system.size, [s = system.state()](auto i) {
     auto ai = vec<T, N>::splat(0);
-    auto pi = s.x[i];
+    auto pi = s.p[i].x();
     for (typename System<T, N>::index_t j = 0; j < s.sz; j++) {
       if (i == j) continue;
-      auto pj = s.x[j];
-      ai += s.m[j] * (pj - pi) / dist3(pi, pj);
+      auto [mj, pj] = s.p[j];
+      ai += mj * (pj - pi) / dist3(pi, pj);
     }
     s.a[i] = s.c * ai;
   });
@@ -41,9 +41,9 @@ void all_pairs_collapsed_force(System<T, N>& system) {
 
     // TODO: we should exploit the symmetry of the force pairs to do
     // (N^2)/2 computations here by taking this "a" and doing "s.a[j] -= a / mj * mi".
-    auto pi = s.x[i];
-    auto pj = s.x[j];
-    auto a  = s.c * s.m[j] * (pj - pi) / dist3(pi, pj);
+    auto [mi, pi] = s.p[i];
+    auto [mj, pj] = s.p[j];
+    auto a  = s.c * mj * (pj - pi) / dist3(pi, pj);
     atomic_ref<T>{s.a[i][0]}.fetch_add(a[0], memory_order_relaxed);
     atomic_ref<T>{s.a[i][1]}.fetch_add(a[1], memory_order_relaxed);
   });
