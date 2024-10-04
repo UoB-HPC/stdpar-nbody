@@ -6,7 +6,7 @@
 
 template <typename T, dim_t N>
 struct monopole {
-  vec<T, N + 1> data{};
+  vec<T, N + 1> data;
 
   monopole()                            = default;
   monopole(monopole const &)            = default;
