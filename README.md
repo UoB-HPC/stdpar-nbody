@@ -54,6 +54,12 @@ To run all benchmarks on a given systems, you can use `./ci/run_docker bench`.
 
 MIT License, see [LICENSE](./LICENSE).
 
+# Citing
+
+Thomas Lane Cassell, Tom Deakin, Aksel Alpay, Vincent Heuveline, and Gonzalo Brito Gadeschi. "Efficient Tree-Based Parallel Algorithms for N-Body Simulations Using C++ Standard Parallelism." In Workshop on Irregular Applications: Architectures and Algorithms Held in Conjunction with Supercomputing (P3HPC). IEEE, 2024.
+
+https://research-information.bris.ac.uk/en/publications/efficient-tree-based-parallel-algorithms-for-n-body-simulations-u
+
 # Contributing code
 
 When contributing code, you may format your contributions as follows:
